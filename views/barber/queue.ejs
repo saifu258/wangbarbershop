@@ -356,24 +356,42 @@
 
     // 4. Action: สร้างคิวทดสอบ (ไม่ต้องสลับหน้า)
     async function createTestQueue() {
-        const randomNum = Math.floor(100 + Math.random() * 900);
-        const queueId = 'T' + randomNum;
-        
-        const bookingData = {
-            queueId: queueId,
-            firstName: 'ลูกค้าทดสอบ',
-            lastName: 'เบอร์ ' + randomNum,
-            phone: '0800000000',
-            serviceName: 'ตัดผม',
-            servicePrice: 200,
-            barber: 'ยังไม่ระบุ',
-            status: 'pending',
-            createdAt: typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore.FieldValue.serverTimestamp() : new Date()
-        };
+        let queueId = 'T001'; // Default
 
         if (typeof db !== 'undefined' && db !== null) {
             try {
-                await db.collection("bookings").add(bookingData);
+                const counterRef = db.collection('settings').doc('queueCounter');
+                
+                await db.runTransaction(async (transaction) => {
+                    const counterDoc = await transaction.get(counterRef);
+                    let newNumber = 1;
+                    
+                    if (counterDoc.exists) {
+                        newNumber = (counterDoc.data().currentNumber || 0) + 1;
+                    }
+                    
+                    queueId = 'T' + String(newNumber).padStart(3, '0');
+                    
+                    transaction.set(counterRef, {
+                        currentNumber: newNumber,
+                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+
+                    const bookingData = {
+                        queueId: queueId,
+                        firstName: 'ลูกค้าทดสอบ',
+                        lastName: 'ลำดับ ' + queueId,
+                        phone: '0800000000',
+                        serviceName: 'ตัดผม',
+                        servicePrice: 200,
+                        barber: 'ยังไม่ระบุ',
+                        status: 'pending',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
+                    const newBookingRef = db.collection('bookings').doc();
+                    transaction.set(newBookingRef, bookingData);
+                });
                 console.log(`Created test queue: ${queueId}`);
             } catch (err) {
                 console.error("Error creating test queue: ", err);

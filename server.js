@@ -45,6 +45,37 @@ app.use(express.urlencoded({ extended: true }));
 // ตั้งค่าการอ่านไฟล์ Static จากโฟลเดอร์ public
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Dynamic Firebase Config Script Route
+app.get('/js/firebase_config.js', (req, res) => {
+    res.type('application/javascript');
+    res.send(`
+// Dynamic Firebase Config from Environment Variables
+const firebaseConfig = {
+    apiKey: "${process.env.FIREBASE_API_KEY || ''}",
+    authDomain: "${process.env.FIREBASE_AUTH_DOMAIN || ''}",
+    projectId: "${process.env.FIREBASE_PROJECT_ID || ''}",
+    storageBucket: "${process.env.FIREBASE_STORAGE_BUCKET || ''}",
+    messagingSenderId: "${process.env.FIREBASE_MESSAGING_SENDER_ID || ''}",
+    appId: "${process.env.FIREBASE_APP_ID || ''}",
+    measurementId: "${process.env.FIREBASE_MEASUREMENT_ID || ''}"
+};
+
+let db = null;
+let auth = null;
+
+try {
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    db = firebase.firestore();
+    auth = firebase.auth();
+    console.log("🔥 Firebase initialized successfully!");
+} catch (error) {
+    console.error("❌ Firebase initialization error: ", error);
+}
+    `);
+});
+
 // -------------------------------------------------------------
 // Routes แสดงผลหน้าเว็บ (Frontend)
 // -------------------------------------------------------------

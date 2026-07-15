@@ -130,9 +130,8 @@
     document.getElementById('bookingForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        // สุ่มเลขคิว นำหน้าด้วย A แล้วตามด้วยเลข 3 หลัก
-        const randomNum = Math.floor(100 + Math.random() * 900);
-        const queueId = 'A' + randomNum;
+        // จะสร้างคิวรันลำดับจาก Firebase ด้านล่าง
+        let queueId = 'A001';
 
         // ดึงข้อมูลฟอร์ม
         const firstName = document.getElementById('firstName').value.trim();
@@ -169,23 +168,8 @@
         const barberId = barberSelect.value;
         const barberName = barberSelect.options[barberSelect.selectedIndex].text;
 
-        // จัดเตรียม Data Object
-        const bookingData = {
-            queueId: queueId,
-            firstName: firstName,
-            lastName: lastName,
-            phone: phone,
-            serviceName: serviceName,
-            servicePrice: servicePrice,
-            barberId: barberId, // ส่ง ID ของช่างไปเก็บบน Firestore
-            barber: barberName, // เก็บชื่อช่างไว้แสดงผลแบบเดิม
-            status: 'pending',
-            createdAt: (typeof firebase !== 'undefined' && firebase.firestore) 
-                ? firebase.firestore.FieldValue.serverTimestamp() 
-                : new Date()
-        };
-
-        console.log("Preparing to save data to Firebase:", bookingData);
+        // จะเตรียมข้อมูลใน Transaction
+        console.log("Preparing to validate and save data to Firebase...");
 
         const submitBtn = document.querySelector('button[type="submit"]');
         const originalBtnText = submitBtn.innerHTML;
@@ -198,8 +182,40 @@
         // ตรวจสอบการเชื่อมต่อ Firebase และบันทึกข้อมูล
         if (typeof db !== 'undefined' && db !== null) {
             try {
-                // [Data Safety] ใช้ await/try-catch เพื่อรอให้บันทึกเสร็จและดักจับ Error
-                await db.collection("bookings").add(bookingData);
+                // [Data Safety] ใช้ Transaction เพื่อดึงเลขคิวล่าสุดและบันทึกข้อมูลแบบไม่ซ้ำ
+                const counterRef = db.collection('settings').doc('queueCounter');
+                
+                await db.runTransaction(async (transaction) => {
+                    const counterDoc = await transaction.get(counterRef);
+                    let newNumber = 1;
+                    
+                    if (counterDoc.exists) {
+                        newNumber = (counterDoc.data().currentNumber || 0) + 1;
+                    }
+                    
+                    queueId = 'A' + String(newNumber).padStart(3, '0');
+                    
+                    transaction.set(counterRef, {
+                        currentNumber: newNumber,
+                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+
+                    const bookingData = {
+                        queueId: queueId,
+                        firstName: firstName,
+                        lastName: lastName,
+                        phone: phone,
+                        serviceName: serviceName,
+                        servicePrice: servicePrice,
+                        barberId: barberId,
+                        barber: barberName,
+                        status: 'pending',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
+                    const newBookingRef = db.collection('bookings').doc();
+                    transaction.set(newBookingRef, bookingData);
+                });
                 
                 // ยิง LINE Notify Booking แบบ Asynchronous 
                 try {
