@@ -109,7 +109,7 @@
                     const navActionContainer = document.getElementById('navActionContainer');
                     if (user) {
                         try {
-                            const userDoc = await db.collection('users').doc(user.email).get();
+                            const userDoc = await db.collection('users').doc(user.uid).get();
                             let role = 'guest';
                             if (userDoc.exists) {
                                 role = userDoc.data().role;

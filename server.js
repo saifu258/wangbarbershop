@@ -12,19 +12,24 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 let db;
 
 try {
-    // กำหนดให้ใช้ serviceAccountKey.json ในการรัน Local
-    const serviceAccountPath = path.join(__dirname, 'serviceAccountKey.json');
-    if (fs.existsSync(serviceAccountPath)) {
-        const serviceAccount = require(serviceAccountPath);
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-        });
-        console.log("✅ Firebase Admin Initialized with serviceAccountKey.json");
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+            // แปลงค่า JSON string จาก Environment Variable เป็น Object
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
+            });
+            console.log("✅ Firebase Admin Initialized with Environment Variable (FIREBASE_SERVICE_ACCOUNT)");
+        } catch (parseError) {
+            console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT. Please ensure it's a valid JSON string.");
+            console.error(parseError);
+        }
     } else {
-        // หากไม่มีไฟล์ (เช่น รันบน Cloud/Docker ที่มีการตั้งค่า ENV ไว้แล้ว)
+        // หากไม่มี ENV (เช่น รันบน Cloud/Docker ที่มีการตั้งค่า Default Credentials ไว้แล้ว)
         admin.initializeApp();
         console.log("✅ Firebase Admin Initialized with Application Default Credentials");
     }
+    
     db = getFirestore();
 } catch (error) {
     console.error("❌ Firebase Admin Initialization Error:", error);

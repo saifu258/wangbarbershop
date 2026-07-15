@@ -141,7 +141,7 @@
                     window.location.replace('/login');
                 } else {
                     try {
-                        const userDoc = await db.collection('users').doc(user.email).get();
+                        const userDoc = await db.collection('users').doc(user.uid).get();
                         if (userDoc.exists) {
                             const role = userDoc.data().role;
                             if (role !== 'barber' && role !== 'manager') {

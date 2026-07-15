@@ -264,23 +264,12 @@
             <h3 class="text-white font-bold"><i class="fa-solid fa-users-gear mr-2 text-blue-400"></i> จัดการพนักงาน (Employee Management)</h3>
         </div>
         <div class="p-6">
-            <!-- Add Employee Form -->
-            <div class="bg-gray-50 p-5 rounded-xl border border-gray-200 mb-8">
-                <h4 class="font-bold text-gray-700 mb-4"><i class="fa-solid fa-user-plus mr-2"></i> เพิ่มพนักงานใหม่</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <input type="text" id="empName" placeholder="ชื่อพนักงาน" class="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                    <input type="email" id="empEmail" placeholder="อีเมล (สำหรับเข้าระบบ)" class="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                    <input type="password" id="empPassword" placeholder="รหัสผ่าน (6 ตัวอักษรขึ้นไป)" class="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                    <select id="empRole" class="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white">
-                        <option value="barber">ช่างตัดผม (Barber)</option>
-                        <option value="manager">ผู้จัดการ (Manager)</option>
-                    </select>
-                </div>
-                <div class="mt-4 flex justify-end">
-                    <button id="addEmpBtn" onclick="addEmployee()" class="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-6 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-2">
-                        <i class="fa-solid fa-user-check"></i> บันทึกพนักงาน
-                    </button>
-                </div>
+            <!-- Add Employee Button -->
+            <div class="mb-6 flex justify-between items-center bg-gray-50 p-5 rounded-xl border border-gray-200">
+                <p class="text-gray-600 font-medium">เพิ่มข้อมูลพนักงานใหม่เข้าสู่ระบบ เพื่อจัดการคิวและตั้งค่าต่างๆ</p>
+                <button onclick="openAddStaffModal()" class="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus"></i> เพิ่มพนักงานใหม่
+                </button>
             </div>
 
             <!-- Employee List -->
@@ -542,7 +531,7 @@
                     window.location.replace('/login');
                 } else {
                     try {
-                        const userDoc = await db.collection('users').doc(user.email).get();
+                        const userDoc = await db.collection('users').doc(user.uid).get();
                         if (userDoc.exists && userDoc.data().role !== 'manager') {
                             alert("❌ คุณไม่มีสิทธิ์เข้าถึงหน้าแดชบอร์ดผู้จัดการ");
                             window.location.href = '/';
@@ -1065,59 +1054,104 @@
         }
     }
 
-    async function addEmployee() {
-        const name = document.getElementById('empName').value.trim();
-        const email = document.getElementById('empEmail').value.trim();
-        const password = document.getElementById('empPassword').value.trim();
-        const role = document.getElementById('empRole').value;
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toastNotification');
+        const icon = document.getElementById('toastIcon');
+        const text = document.getElementById('toastMessage');
+
+        text.innerText = message;
+        
+        toast.className = 'fixed top-5 right-5 z-[60] flex items-center p-4 mb-4 text-gray-700 bg-white rounded-xl shadow-xl border-l-4 transform transition-all duration-300 translate-x-0 opacity-100';
+        icon.className = 'inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg text-white';
+
+        if (type === 'success') {
+            toast.classList.add('border-green-500');
+            icon.classList.add('bg-green-500');
+            icon.innerHTML = '<i class="fa-solid fa-check"></i>';
+        } else {
+            toast.classList.add('border-red-500');
+            icon.classList.add('bg-red-500');
+            icon.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        }
+
+        // Auto hide after 3 seconds
+        setTimeout(() => {
+            hideToast();
+        }, 3000);
+    }
+
+    function hideToast() {
+        const toast = document.getElementById('toastNotification');
+        toast.classList.remove('translate-x-0', 'opacity-100');
+        toast.classList.add('translate-x-full', 'opacity-0');
+    }
+
+    function openAddStaffModal() {
+        document.getElementById('modalEmpName').value = '';
+        document.getElementById('modalEmpEmail').value = '';
+        document.getElementById('modalEmpPassword').value = '';
+        document.getElementById('modalEmpRole').value = 'barber';
+        document.getElementById('addStaffModal').classList.remove('hidden');
+    }
+
+    function closeAddStaffModal() {
+        document.getElementById('addStaffModal').classList.add('hidden');
+    }
+
+    async function submitAddStaff() {
+        const name = document.getElementById('modalEmpName').value.trim();
+        const email = document.getElementById('modalEmpEmail').value.trim();
+        const password = document.getElementById('modalEmpPassword').value.trim();
+        const role = document.getElementById('modalEmpRole').value;
 
         if (!name || !email || !password) {
-            alert('❌ กรุณากรอกข้อมูลให้ครบถ้วน');
-            return;
-        }
-        
-        if (password.length < 6) {
-            alert('❌ รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+            showToast('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
             return;
         }
 
-        const btn = document.getElementById('addEmpBtn');
+        if (password.length < 6) {
+            showToast('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('modalAddEmpBtn');
         const originalText = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
         btn.classList.add('opacity-70', 'cursor-not-allowed');
 
         try {
             // สร้าง Secondary Firebase App เพื่อหลีกเลี่ยงการถูก Logout ออกจากบัญชี Admin หลัก
             const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryApp");
             const newAuth = secondaryApp.auth();
-            
+
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
             // สร้างบัญชีใหม่ใน Firebase Authentication
-            await newAuth.createUserWithEmailAndPassword(email, password);
+            const userCredential = await newAuth.createUserWithEmailAndPassword(email, password);
+            const newUser = userCredential.user;
+            
             await newAuth.signOut(); // ออกจากระบบในแอปจำลอง
             secondaryApp.delete(); // ลบแอปจำลองทิ้งเพื่อคืนหน่วยความจำ
 
-            // บันทึกรายละเอียดลง Firestore 
-            await db.collection('users').doc(email).set({
+            // Save new staff member into Firestore using UID
+            await db.collection('users').doc(newUser.uid).set({
                 name: name,
+                email: email,
                 role: role,
                 status: 'available',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            alert(`✅ เพิ่มพนักงาน "${name}" เข้าสู่ระบบเรียบร้อยแล้ว!`);
-            
-            // ล้างฟอร์ม
-            document.getElementById('empName').value = '';
-            document.getElementById('empEmail').value = '';
-            document.getElementById('empPassword').value = '';
-
+            showToast('✅ Staff added successfully', 'success');
+            closeAddStaffModal();
+            loadEmployees(); // Refresh the list
         } catch (error) {
-            console.error("Error adding employee:", error);
+            console.error("Error adding staff:", error);
             if (error.code === 'auth/email-already-in-use') {
-                alert("❌ อีเมลนี้มีในระบบแล้ว กรุณาใช้อีเมลอื่น");
+                showToast('อีเมลนี้มีในระบบแล้ว กรุณาใช้อีเมลอื่น', 'error');
             } else {
-                alert("❌ เกิดข้อผิดพลาด: " + error.message);
+                showToast("เกิดข้อผิดพลาด: " + error.message, 'error');
             }
         } finally {
             btn.disabled = false;
@@ -1538,5 +1572,64 @@
         }
     }
 </script>
+
+    <!-- Add Staff Modal -->
+    <div id="addStaffModal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm transition-opacity" onclick="closeAddStaffModal()"></div>
+        
+        <!-- Modal Content -->
+        <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden relative z-10 w-full max-w-md transform transition-all">
+            <div class="bg-gray-800 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-white font-bold text-lg"><i class="fa-solid fa-user-plus mr-2 text-blue-400"></i> เพิ่มพนักงานใหม่ (Add New Staff)</h3>
+                <button onclick="closeAddStaffModal()" class="text-gray-300 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อพนักงาน</label>
+                    <input type="text" id="modalEmpName" placeholder="กรอกชื่อพนักงาน" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">อีเมลพนักงาน</label>
+                    <input type="email" id="modalEmpEmail" placeholder="email@example.com" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">รหัสผ่าน (6 ตัวอักษรขึ้นไป)</label>
+                    <input type="password" id="modalEmpPassword" placeholder="กำหนดรหัสผ่านเบื้องต้น" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">สิทธิ์การใช้งาน (Role)</label>
+                    <select id="modalEmpRole" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white">
+                        <option value="barber">ช่างตัดผม (Barber)</option>
+                        <option value="manager">ผู้จัดการ (Manager)</option>
+                    </select>
+                </div>
+                
+                <div class="mt-6 flex justify-end gap-3">
+                    <button onclick="closeAddStaffModal()" class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors">
+                        ยกเลิก
+                    </button>
+                    <button id="modalAddEmpBtn" onclick="submitAddStaff()" class="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-6 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-save"></i> บันทึกข้อมูล
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toastNotification" class="fixed top-5 right-5 z-[70] flex items-center p-4 mb-4 text-gray-500 bg-white rounded-xl shadow-xl border-l-4 transform transition-all duration-300 translate-x-full opacity-0 pointer-events-none" role="alert">
+        <div id="toastIcon" class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg">
+            <i class="fa-solid fa-check"></i>
+        </div>
+        <div id="toastMessage" class="ml-3 text-sm font-semibold">Message</div>
+        <button type="button" onclick="hideToast()" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8 pointer-events-auto" aria-label="Close">
+            <span class="sr-only">Close</span>
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
 
 <%- include('../partials/footer') %>
