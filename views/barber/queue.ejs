@@ -44,9 +44,8 @@
             <!-- เลือกช่างประจำเครื่องนี้ -->
             <div class="flex items-center gap-2 bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-200 shadow-sm">
                 <label for="currentBarberSelect" class="text-sm font-semibold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-scissors text-gray-400 mr-1"></i> พนักงาน:</label>
-                <select id="currentBarberSelect" class="bg-transparent border-none outline-none text-blue-600 font-bold cursor-pointer text-sm w-full sm:w-auto">
-                    <option value="Barber 1">ช่างคนที่ 1 (Barber 1)</option>
-                    <option value="Barber 2">ช่างคนที่ 2 (Barber 2)</option>
+                <select id="currentBarberSelect" disabled class="bg-transparent border-none outline-none text-blue-600 font-bold cursor-not-allowed text-sm w-full sm:w-auto opacity-80 appearance-none">
+                    <option value="">กำลังโหลด...</option>
                 </select>
             </div>
             
@@ -116,8 +115,9 @@
                     </thead>
                     <tbody id="servingTableBody" class="divide-y divide-blue-50 bg-white">
                         <tr>
-                            <td colspan="5" class="p-8 text-center text-gray-500 font-medium">
-                                ยังไม่มีคิวที่กำลังให้บริการ
+                            <td colspan="5" class="p-12 text-center text-gray-500">
+                                <i class="fa-solid fa-spinner fa-spin text-4xl mb-4 text-blue-500"></i><br>
+                                <span class="font-medium">กำลังโหลดคิวที่ให้บริการ...</span>
                             </td>
                         </tr>
                     </tbody>
@@ -148,9 +148,20 @@
                                 alert("❌ คุณไม่มีสิทธิ์เข้าถึงหน้าจัดการคิวช่าง");
                                 window.location.href = '/';
                             } else {
+                                // ดึงชื่อช่างจาก Firestore
+                                const currentBarberName = userDoc.data().name || 'ช่างไม่มีชื่อ';
+                                
+                                // ล็อค UI Dropdown
+                                const selectEl = document.getElementById('currentBarberSelect');
+                                selectEl.innerHTML = `<option value="${currentBarberName}">${currentBarberName}</option>`;
+                                selectEl.value = currentBarberName;
+
                                 // ผ่าน
                                 document.getElementById('authOverlay').classList.add('opacity-0');
                                 setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
+                                
+                                // เริ่มโหลดข้อมูลคิว โดยใช้ชื่อและ UID ของช่างคนนี้เพื่อความแม่นยำ
+                                initializeQueueListener(currentBarberName, user.uid);
                             }
                         } else {
                             alert("❌ ไม่พบข้อมูลสิทธิ์ผู้ใช้งาน");
@@ -221,8 +232,8 @@
                     <td class="p-4 font-semibold text-gray-800 text-lg">
                         ${booking.firstName} ${booking.lastName || ''}
                     </td>
-                    <td class="p-4 text-gray-600">
-                        <span class="font-medium bg-gray-100 px-3 py-1 rounded-full text-sm border border-gray-200">${booking.serviceName}</span>
+                    <td class="p-4 text-gray-600 max-w-[150px] sm:max-w-[250px]">
+                        <div class="font-medium bg-gray-100 px-3 py-1 rounded-full text-sm border border-gray-200 whitespace-nowrap truncate text-center" title="${booking.serviceName}">${booking.serviceName}</div>
                     </td>
                     <td class="p-4 text-center text-gray-500 font-mono text-sm font-semibold">
                         ${timeStr}
@@ -266,8 +277,8 @@
                     <td class="p-4 font-bold text-gray-800 text-lg">
                         ${booking.firstName} ${booking.lastName || ''}
                     </td>
-                    <td class="p-4 text-gray-600">
-                        <span class="font-medium bg-gray-100 px-3 py-1 rounded-full text-sm border border-gray-200">${booking.serviceName}</span>
+                    <td class="p-4 text-gray-600 max-w-[150px] sm:max-w-[250px]">
+                        <div class="font-medium bg-gray-100 px-3 py-1 rounded-full text-sm border border-gray-200 whitespace-nowrap truncate text-center" title="${booking.serviceName}">${booking.serviceName}</div>
                     </td>
                     <td class="p-4 text-center font-bold text-blue-700">
                         ${booking.barber || '-'}
@@ -465,57 +476,74 @@
     // 6. โหลดข้อมูล Real-time จาก Firebase
     let unsubscribePending = null;
 
-    if (typeof db !== 'undefined' && db !== null) {
-        unsubscribePending = db.collection("bookings")
-            .where("status", "in", ["pending", "calling", "serving"])
-            .onSnapshot((snapshot) => {
-                const pendingBookings = [];
-                const servingBookings = [];
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const b = { id: doc.id, ...data };
+    function initializeQueueListener(barberName, barberUid) {
+        if (typeof db !== 'undefined' && db !== null) {
+            // ไม่ล็อค .where("barber") เพื่อป้องกันปัญหาการสะกดผิดหรือ Index และมาจัดการฟิลเตอร์ด้วย JS แทน
+            unsubscribePending = db.collection("bookings")
+                .where("status", "in", ["pending", "calling", "serving"])
+                .onSnapshot((snapshot) => {
+                    const pendingBookings = [];
+                    const servingBookings = [];
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        
+                        // ฟิลเตอร์คิวให้แสดงเฉพาะของช่างคนนี้:
+                        // 1. เทียบด้วย barberId (แม่นยำที่สุด - รองรับระบบจองออนไลน์ที่แนบ UID มา)
+                        // 2. เทียบด้วยชื่อแบบไม่สนใจตัวพิมพ์เล็กใหญ่ (รองรับระบบเก่าที่มีแต่ชื่อ)
+                        const isMyQueue = (data.barberId === barberUid) || 
+                                          (data.barber && data.barber.toLowerCase().trim() === barberName.toLowerCase().trim());
+                        
+                        if (!isMyQueue) return;
+
+                        const b = { id: doc.id, ...data };
+                        
+                        if (data.status === 'pending') {
+                            pendingBookings.push(b);
+                        } else if (data.status === 'calling' || data.status === 'serving') {
+                            servingBookings.push(b);
+                        }
+                    });
                     
-                    if (data.status === 'pending') {
-                        pendingBookings.push(b);
-                    } else if (data.status === 'calling' || data.status === 'serving') {
-                        servingBookings.push(b);
+                    // เรียงลำดับคิว pending
+                    pendingBookings.sort((a,b) => {
+                        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
+                        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
+                        return timeA - timeB; // Ascending (เก่าไปใหม่)
+                    });
+
+                    // เรียงลำดับคิว serving (เรียกก่อนขึ้นก่อน)
+                    servingBookings.sort((a,b) => {
+                        const timeA = a.updatedAt?.toDate ? a.updatedAt.toDate().getTime() : new Date(a.updatedAt || 0).getTime();
+                        const timeB = b.updatedAt?.toDate ? b.updatedAt.toDate().getTime() : new Date(b.updatedAt || 0).getTime();
+                        return timeB - timeA; // Descending (ใหม่สุดขึ้นก่อน)
+                    });
+                    
+                    renderTable(pendingBookings);
+                    renderServingTable(servingBookings);
+                }, (error) => {
+                    console.error("Error listening to bookings: ", error);
+                    if (error.message.includes('indexes')) {
+                        console.warn("Index is missing. Please create a composite index for (barber, status).");
+                        alert("⚠️ จำเป็นต้องสร้าง Database Index สำหรับระบบคิว\nกรุณาดู Link ใน Console เพื่อไปสร้าง Index ใน Firebase");
+                    } else {
+                        renderTable([]); // Fallback เคลียร์ตารางเมื่อเกิด error อื่น
+                        renderServingTable([]);
                     }
                 });
-                
-                // เรียงลำดับคิว pending
-                pendingBookings.sort((a,b) => {
-                    const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
-                    const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
-                    return timeA - timeB; // Ascending (เก่าไปใหม่)
-                });
 
-                // เรียงลำดับคิว serving (เรียกก่อนขึ้นก่อน)
-                servingBookings.sort((a,b) => {
-                    const timeA = a.updatedAt?.toDate ? a.updatedAt.toDate().getTime() : new Date(a.updatedAt || 0).getTime();
-                    const timeB = b.updatedAt?.toDate ? b.updatedAt.toDate().getTime() : new Date(b.updatedAt || 0).getTime();
-                    return timeB - timeA; // Descending (ใหม่สุดขึ้นก่อน)
-                });
-                
-                renderTable(pendingBookings);
-                renderServingTable(servingBookings);
-            }, (error) => {
-                console.error("Error listening to bookings: ", error);
-                renderTable(mockData); // Fallback
-                renderServingTable([]);
+            // [Memory Leak Prevention] ป้องกัน Memory leak เมื่อออกจากหน้านี้
+            window.addEventListener('beforeunload', () => {
+                if (unsubscribePending) {
+                    unsubscribePending();
+                }
             });
-
-        // [Memory Leak Prevention] ป้องกัน Memory leak เมื่อออกจากหน้านี้
-        window.addEventListener('beforeunload', () => {
-            if (unsubscribePending) {
-                unsubscribePending();
-            }
-        });
-    } else {
-        // ใช้ข้อมูลจำลองถ้าไม่มี DB
-        document.getElementById('firebaseErrorBanner').classList.remove('hidden');
-        setTimeout(() => {
-            renderTable(mockData);
-        }, 800);
+        } else {
+            // ใช้ข้อมูลจำลองถ้าไม่มี DB
+            document.getElementById('firebaseErrorBanner').classList.remove('hidden');
+            setTimeout(() => {
+                renderTable(mockData);
+            }, 800);
+        }
     }
 </script>
 
