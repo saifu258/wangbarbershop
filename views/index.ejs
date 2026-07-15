@@ -1,0 +1,432 @@
+<%- include('partials/header') %>
+
+<!-- Error Banner (แสดงเมื่อ Firebase มีปัญหา) -->
+<div id="firebaseErrorBanner" class="hidden bg-red-600 text-white text-center py-3 px-4 font-bold shadow-md w-full relative z-[100]">
+    <i class="fa-solid fa-triangle-exclamation mr-2 text-xl"></i> 
+    ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบการตั้งค่า Firebase
+</div>
+
+<div class="max-w-xl mx-auto mt-8 sm:mt-12 px-4 sm:px-6 mb-12">
+    <!-- Card Container -->
+    <div class="bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-100 relative">
+        
+        <!-- Decoration effect -->
+        <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-blue-500 rounded-full opacity-10 blur-xl"></div>
+        <div class="absolute bottom-0 left-0 -mb-4 -ml-4 w-24 h-24 bg-blue-500 rounded-full opacity-10 blur-xl"></div>
+
+        <!-- Header Section -->
+        <div class="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-6 text-center relative z-10 shadow-sm">
+            <div class="inline-block bg-white/20 p-3 rounded-full mb-3 backdrop-blur-sm">
+                <i class="fa-solid fa-calendar-check text-3xl text-white"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-white tracking-wide">จองคิวตัดผม</h2>
+            <p class="text-blue-100 text-sm mt-2 font-light">กรุณากรอกข้อมูลเพื่อทำการจองคิวล่วงหน้า</p>
+        </div>
+        
+        <!-- Form Section -->
+        <form id="bookingForm" class="p-6 sm:p-8 space-y-6 relative z-10 bg-white">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <!-- ชื่อ -->
+                <div class="space-y-1">
+                    <label for="firstName" class="block text-sm font-semibold text-gray-700">ชื่อ <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fa-regular fa-user text-gray-400"></i>
+                        </div>
+                        <input type="text" id="firstName" name="firstName" required
+                            class="w-full pl-10 px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50 hover:bg-white focus:bg-white text-gray-800 shadow-sm"
+                            placeholder="ชื่อของคุณ">
+                    </div>
+                </div>
+                
+                <!-- นามสกุล -->
+                <div class="space-y-1">
+                    <label for="lastName" class="block text-sm font-semibold text-gray-700">นามสกุล <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fa-regular fa-user text-gray-400"></i>
+                        </div>
+                        <input type="text" id="lastName" name="lastName" required
+                            class="w-full pl-10 px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50 hover:bg-white focus:bg-white text-gray-800 shadow-sm"
+                            placeholder="นามสกุลของคุณ">
+                    </div>
+                </div>
+            </div>
+
+            <!-- เบอร์โทร -->
+            <div class="space-y-1">
+                <label for="phone" class="block text-sm font-semibold text-gray-700">เบอร์โทรศัพท์ <span class="text-red-500">*</span></label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-phone text-gray-400"></i>
+                    </div>
+                    <input type="tel" id="phone" name="phone" required pattern="[0-9]{9,10}"
+                        class="w-full pl-10 px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50 hover:bg-white focus:bg-white text-gray-800 shadow-sm"
+                        placeholder="08X-XXX-XXXX">
+                </div>
+                <p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-circle-info mr-1"></i>สำหรับติดต่อยืนยันการจอง</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <!-- บริการ -->
+                <div class="space-y-1">
+                    <label for="service" class="block text-sm font-semibold text-gray-700">บริการที่ต้องการ <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fa-solid fa-list-check text-gray-400"></i>
+                        </div>
+                        <select id="service" name="service" required
+                            class="w-full pl-10 px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50 hover:bg-white focus:bg-white text-gray-800 shadow-sm appearance-none cursor-pointer">
+                            <option value="" disabled selected>-- กำลังโหลดบริการ --</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                            <i class="fa-solid fa-chevron-down text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ช่างตัดผม -->
+                <div class="space-y-1">
+                    <label for="barber" class="block text-sm font-semibold text-gray-700">ช่างตัดผม <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fa-solid fa-scissors text-gray-400"></i>
+                        </div>
+                        <select id="barber" name="barber" required
+                            class="w-full pl-10 px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-gray-50 hover:bg-white focus:bg-white text-gray-800 shadow-sm appearance-none cursor-pointer">
+                            <option value="" disabled selected>-- กำลังโหลดรายชื่อช่าง --</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                            <i class="fa-solid fa-chevron-down text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> ยืนยันการจองคิว
+                </button>
+            </div>
+        </form>
+
+        <!-- LINE QR Code Section (Hidden by default) -->
+        <div id="lineQrContainer" class="hidden border-t border-gray-100 bg-gradient-to-b from-gray-50/50 to-white p-6 sm:p-8 text-center relative z-10">
+            <h3 class="text-lg font-bold text-gray-800 mb-2 flex items-center justify-center gap-2">
+                <i class="fa-brands fa-line text-[#06C755] text-2xl"></i> ติดต่อเรา / เพิ่มเพื่อน
+            </h3>
+            <p class="text-sm text-gray-500 mb-4">แอด LINE เพื่อรับการแจ้งเตือนคิวและโปรโมชั่นพิเศษ</p>
+            <div class="inline-block bg-white p-3 rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                <img id="lineQrImage" src="" alt="LINE QR Code" class="w-32 h-32 sm:w-40 sm:h-40 object-contain mx-auto rounded-xl">
+            </div>
+            <p class="text-xs text-green-600 font-semibold mt-3 uppercase tracking-wider">Wang Barber Official</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // สุ่มเลขคิว นำหน้าด้วย A แล้วตามด้วยเลข 3 หลัก
+        const randomNum = Math.floor(100 + Math.random() * 900);
+        const queueId = 'A' + randomNum;
+
+        // ดึงข้อมูลฟอร์ม
+        const firstName = document.getElementById('firstName').value.trim();
+        const lastName = document.getElementById('lastName').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        
+        // Data Safety & Validation
+        if (!firstName || !phone) {
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบถ้วน', text: 'กรุณากรอกข้อมูลที่จำเป็น (ชื่อ และเบอร์โทร) ให้ครบถ้วน' });
+            else alert("❌ กรุณากรอกข้อมูลที่จำเป็น (ชื่อ และเบอร์โทร) ให้ครบถ้วน");
+            return;
+        }
+
+        // เพิ่มการตรวจสอบชื่อและนามสกุลด้วย Regex
+        const nameRegex = /^[a-zA-Zก-๙\s]+$/;
+        if (!nameRegex.test(firstName) || (lastName && !nameRegex.test(lastName))) {
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'รูปแบบชื่อไม่ถูกต้อง', text: 'ชื่อและนามสกุลต้องประกอบด้วยตัวอักษรเท่านั้น (ห้ามมีตัวเลขหรือสัญลักษณ์พิเศษ)' });
+            else alert("❌ ชื่อและนามสกุลต้องประกอบด้วยตัวอักษรเท่านั้น (ห้ามมีตัวเลขหรือสัญลักษณ์พิเศษ)");
+            return;
+        }
+
+        const phoneRegex = /^0[0-9]{8,9}$/;
+        if (!phoneRegex.test(phone)) {
+            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'เบอร์โทรศัพท์ไม่ถูกต้อง', text: 'รูปแบบเบอร์โทรศัพท์ต้องขึ้นต้นด้วย 0 และมีตัวเลข 9-10 หลัก' });
+            else alert("❌ รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง (ต้องขึ้นต้นด้วย 0 และมีตัวเลข 9-10 หลัก)");
+            return;
+        }
+        
+        const serviceValue = document.getElementById('service').value;
+        const [serviceName, servicePriceStr] = serviceValue.split('|');
+        const servicePrice = Number(servicePriceStr);
+        
+        const barberSelect = document.getElementById('barber');
+        const barberId = barberSelect.value;
+        const barberName = barberSelect.options[barberSelect.selectedIndex].text;
+
+        // จัดเตรียม Data Object
+        const bookingData = {
+            queueId: queueId,
+            firstName: firstName,
+            lastName: lastName,
+            phone: phone,
+            serviceName: serviceName,
+            servicePrice: servicePrice,
+            barberId: barberId, // ส่ง ID ของช่างไปเก็บบน Firestore
+            barber: barberName, // เก็บชื่อช่างไว้แสดงผลแบบเดิม
+            status: 'pending',
+            createdAt: (typeof firebase !== 'undefined' && firebase.firestore) 
+                ? firebase.firestore.FieldValue.serverTimestamp() 
+                : new Date()
+        };
+
+        console.log("Preparing to save data to Firebase:", bookingData);
+
+        const submitBtn = document.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerHTML;
+        
+        // UX: ป้องกันการกดซ้ำ และแสดง Loading State
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังจอง...';
+        submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+
+        // ตรวจสอบการเชื่อมต่อ Firebase และบันทึกข้อมูล
+        if (typeof db !== 'undefined' && db !== null) {
+            try {
+                // [Data Safety] ใช้ await/try-catch เพื่อรอให้บันทึกเสร็จและดักจับ Error
+                await db.collection("bookings").add(bookingData);
+                
+                // ยิง LINE Notify Booking แบบ Asynchronous 
+                try {
+                    const response = await fetch('/api/notify/booking', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            queueNumber: queueId,
+                            customerName: `${firstName} ${lastName}`.trim(),
+                            service: serviceName,
+                            lineUserId: "MOCK_USER_ID_123" // ในระบบจริงอาจจะได้มาจากการ Login ด้วย LINE
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        console.warn("LINE Notify warning: API returned", response.status);
+                    }
+                } catch (notifyErr) {
+                    console.error("Error triggering LINE notify:", notifyErr);
+                    // ไม่ return เพราะจองคิวสำเร็จแล้ว แค่แจ้งเตือน LINE พังเฉยๆ
+                }
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'จองคิวสำเร็จ!',
+                        html: `
+                            <div class="text-left bg-gray-50 p-4 rounded-lg mt-2 border border-green-100">
+                                <p class="mb-1 text-gray-700"><strong>ชื่อ:</strong> ${firstName} ${lastName}</p>
+                                <p class="mb-1 text-gray-700"><strong>บริการ:</strong> ${serviceName} (${servicePrice}฿)</p>
+                                <p class="mb-1 text-gray-700"><strong>ช่าง:</strong> ${barberName}</p>
+                                <div class="mt-5 pt-4 border-t border-gray-200 text-center">
+                                    <p class="text-sm text-gray-500 mb-1">หมายเลขคิวของคุณคือ</p>
+                                    <p class="text-4xl font-black text-blue-600 tracking-wider">${queueId}</p>
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonText: 'ตกลง',
+                        confirmButtonColor: '#2563EB'
+                    });
+                } else {
+                    alert(`✅ จองคิวสำเร็จ!\n\nชื่อ: ${firstName} ${lastName}\nบริการ: ${serviceName} (${servicePrice}฿)\nช่าง: ${barberName}\n\nหมายเลขคิวของคุณคือ: ${queueId}`);
+                }
+                document.getElementById('bookingForm').reset();
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                
+                if (error.code === 'permission-denied' || error.message.includes("Missing or insufficient permissions")) {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'สิทธิ์ไม่เพียงพอ', text: 'เกิดข้อผิดพลาดด้านสิทธิ์ (Permission Denied) กรุณาตรวจสอบ Firestore Rules' });
+                    else alert("❌ เกิดข้อผิดพลาดด้านสิทธิ์ (Permission Denied)");
+                } else {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message });
+                    else alert("❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + error.message);
+                }
+                
+                // คืนค่าปุ่มเมื่อเกิด Error
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+        } else {
+            // กรณีที่ไม่มี db (ไม่ได้ตั้งค่าใน firebase_config.js หรือ Error)
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'จองคิวสำเร็จ!',
+                    html: `
+                        <div class="text-left bg-gray-50 p-4 rounded-lg mt-2">
+                            <p class="mb-1 text-gray-700"><strong>หมายเลขคิว:</strong> <span class="text-2xl font-bold text-blue-600">${queueId}</span></p>
+                            <p class="text-xs text-yellow-600 mt-3"><i class="fa-solid fa-triangle-exclamation"></i> แจ้งเตือน: ยังไม่ได้ตั้งค่า Firebase Configuration</p>
+                        </div>
+                    `,
+                    confirmButtonText: 'ตกลง',
+                    confirmButtonColor: '#2563EB'
+                });
+            } else {
+                alert(`✅ จองคิวสำเร็จ!\n\nหมายเลขคิวของคุณคือ: ${queueId}\n\n⚠️ แจ้งเตือน: ยังไม่ได้ตั้งค่า Firebase Configuration (ตัวแปร db ยังไม่ถูกสร้าง)`);
+            }
+            document.getElementById('bookingForm').reset();
+            
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+        }
+                
+
+    });
+
+    // ตรวจสอบการเชื่อมต่อเมื่อโหลดหน้าเว็บ
+    let unsubscribeSettings = null;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        const barberSelect = document.getElementById('barber');
+        
+        // 1. ลองดึงข้อมูลจาก Backend API ก่อน (ตามที่ออกแบบไว้)
+        let apiSuccess = false;
+        try {
+            const res = await fetch('/api/barbers');
+            if (res.ok) {
+                const result = await res.json();
+                if (result.success) {
+                    apiSuccess = true;
+                    if (result.data.length > 0) {
+                        barberSelect.innerHTML = '<option value="" disabled selected>-- เลือกช่าง --</option>';
+                        result.data.forEach(barber => {
+                            const option = document.createElement('option');
+                            option.value = barber.id;
+                            option.textContent = barber.name;
+                            barberSelect.appendChild(option);
+                        });
+                    } else {
+                        barberSelect.innerHTML = '<option value="" disabled selected>-- ไม่มีช่างพร้อมให้บริการ --</option>';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("API Fetch Error:", error);
+        }
+
+        // 2. ถ้า Backend พัง (เช่น รัน Local แล้วไม่มี serviceAccountKey.json) 
+        // จะใช้ Client-side Firebase SDK ดึงข้อมูลแทนเพื่อไม่ให้หน้าเว็บค้าง
+        if (!apiSuccess && typeof db !== 'undefined' && db !== null) {
+            console.log("Fallback to Client-Side Firebase for fetching barbers...");
+            try {
+                const snapshot = await db.collection('users')
+                    .where('role', '==', 'barber')
+                    .where('status', '==', 'available')
+                    .get();
+                
+                if (!snapshot.empty) {
+                    barberSelect.innerHTML = '<option value="" disabled selected>-- เลือกช่าง --</option>';
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        const option = document.createElement('option');
+                        option.value = doc.id;
+                        option.textContent = data.name || doc.id;
+                        barberSelect.appendChild(option);
+                    });
+                } else {
+                    barberSelect.innerHTML = '<option value="" disabled selected>-- ไม่มีช่างพร้อมให้บริการ --</option>';
+                }
+            } catch (error) {
+                console.error("Firestore Fetch Error:", error);
+                barberSelect.innerHTML = '<option value="" disabled selected>-- โหลดข้อมูลผิดพลาด --</option>';
+            }
+        } else if (!apiSuccess) {
+            barberSelect.innerHTML = '<option value="" disabled selected>-- ระบบขัดข้อง --</option>';
+        }
+
+        // --- โหลดข้อมูลบริการ (Services) ---
+        const serviceSelect = document.getElementById('service');
+        let svcApiSuccess = false;
+        try {
+            const res = await fetch('/api/services');
+            if (res.ok) {
+                const result = await res.json();
+                if (result.success) {
+                    svcApiSuccess = true;
+                    if (result.data.length > 0) {
+                        serviceSelect.innerHTML = '<option value="" disabled selected>-- เลือกบริการ --</option>';
+                        result.data.forEach(svc => {
+                            const option = document.createElement('option');
+                            option.value = `${svc.name}|${svc.price}`;
+                            option.textContent = `${svc.name} (${Number(svc.price).toLocaleString()}฿)`;
+                            serviceSelect.appendChild(option);
+                        });
+                    } else {
+                        serviceSelect.innerHTML = '<option value="" disabled selected>-- ไม่มีบริการในระบบ --</option>';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Services API Fetch Error:", error);
+        }
+
+        if (!svcApiSuccess && typeof db !== 'undefined' && db !== null) {
+            console.log("Fallback to Client-Side Firebase for fetching services...");
+            try {
+                const snapshot = await db.collection('services').where('status', '==', 'available').get();
+                if (!snapshot.empty) {
+                    serviceSelect.innerHTML = '<option value="" disabled selected>-- เลือกบริการ --</option>';
+                    snapshot.forEach(doc => {
+                        const svc = doc.data();
+                        const option = document.createElement('option');
+                        option.value = `${svc.name}|${svc.price}`;
+                        option.textContent = `${svc.name} (${Number(svc.price).toLocaleString()}฿)`;
+                        serviceSelect.appendChild(option);
+                    });
+                } else {
+                    serviceSelect.innerHTML = '<option value="" disabled selected>-- ไม่มีบริการในระบบ --</option>';
+                }
+            } catch (error) {
+                console.error("Firestore Fetch Services Error:", error);
+                serviceSelect.innerHTML = '<option value="" disabled selected>-- โหลดข้อมูลผิดพลาด --</option>';
+            }
+        } else if (!svcApiSuccess) {
+            serviceSelect.innerHTML = '<option value="" disabled selected>-- ระบบขัดข้อง --</option>';
+        }
+
+        // ตรวจสอบการแจ้งเตือน Error
+        if (typeof db === 'undefined' || db === null) {
+            document.getElementById('firebaseErrorBanner').classList.remove('hidden');
+        } else {
+            // โหลดตั้งค่าร้าน (QR Code) แบบ Real-time
+            unsubscribeSettings = db.collection('settings').doc('shop').onSnapshot((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    const qrContainer = document.getElementById('lineQrContainer');
+                    const qrImage = document.getElementById('lineQrImage');
+                    
+                    if (data.lineQrBase64) {
+                        qrImage.src = data.lineQrBase64;
+                        qrContainer.classList.remove('hidden');
+                    } else {
+                        qrContainer.classList.add('hidden');
+                    }
+                }
+            }, (error) => {
+                console.error("Error loading shop settings:", error);
+            });
+            
+            // [Memory Leak Prevention] ป้องกัน Memory leak เมื่อออกจากหน้าหรือรีเฟรช
+            window.addEventListener('beforeunload', () => {
+                if (unsubscribeSettings) unsubscribeSettings();
+            });
+        }
+    });
+</script>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= typeof title !== 'undefined' ? title : 'Wang Barbershop' %></title>
+    
+    <!-- Tailwind CSS (via CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome 6 (via CDN) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts (Kanit) -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK v9 (Compat version via CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    
+    <!-- SweetAlert2 (via CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Custom Firebase Config -->
+    <script src="/js/firebase_config.js"></script>
+
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <nav class="bg-gray-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <!-- Logo -->
+                <a href="/" class="flex-shrink-0 flex items-center gap-3 group transition-transform hover:scale-105">
+                    <div class="bg-blue-600 p-2 rounded-lg flex items-center justify-center overflow-hidden w-10 h-10" id="navLogoContainer">
+                        <i class="fa-solid fa-scissors text-xl text-white transform -rotate-45" id="navLogoIcon"></i>
+                        <img id="navLogoImage" src="" class="hidden w-full h-full object-contain" alt="Logo">
+                    </div>
+                    <span class="font-bold text-xl tracking-widest text-white" id="navShopName">WANG <span class="text-blue-500">BARBER</span></span>
+                </a>
+                
+                <!-- Action Button -->
+                <div class="flex items-center gap-2 sm:gap-3 opacity-0 transition-opacity duration-300" id="navActionContainer">
+                    <a href="/login" id="navLoginBtn" class="bg-gray-800 border border-gray-700 hover:bg-gray-700 hover:border-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-user-lock"></i>
+                        <span class="hidden sm:inline">เข้าสู่ระบบพนักงาน</span>
+                        <span class="sm:hidden">พนักงาน</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content Wrapper -->
+    <main class="flex-grow">
+    
+    <script>
+        // Real-time listener for Shop Settings (Navbar)
+        let unsubscribeHeaderSettings = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (typeof db !== 'undefined' && db !== null) {
+                unsubscribeHeaderSettings = db.collection('settings').doc('shop').onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        
+                        // Update Shop Name
+                        if (data.shopName) {
+                            document.getElementById('navShopName').innerText = data.shopName;
+                        }
+
+                        // Update Logo
+                        const logoIcon = document.getElementById('navLogoIcon');
+                        const logoImg = document.getElementById('navLogoImage');
+                        const logoContainer = document.getElementById('navLogoContainer');
+                        
+                        if (data.logoBase64) {
+                            logoIcon.classList.add('hidden');
+                            logoImg.src = data.logoBase64;
+                            logoImg.classList.remove('hidden');
+                            logoContainer.classList.remove('bg-blue-600');
+                            logoContainer.classList.add('bg-white');
+                        } else {
+                            logoIcon.classList.remove('hidden');
+                            logoImg.classList.add('hidden');
+                            logoContainer.classList.add('bg-blue-600');
+                            logoContainer.classList.remove('bg-white');
+                        }
+                    }
+                }, (error) => {
+                    console.error("Error loading header settings:", error);
+                });
+                
+                // [Memory Leak Prevention] ป้องกัน Memory leak เมื่อออกจากหน้าหรือรีเฟรช
+                window.addEventListener('beforeunload', () => {
+                    if (unsubscribeHeaderSettings) unsubscribeHeaderSettings();
+                });
+            }
+            
+            // Auth State Listener (Dynamic Navbar)
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                firebase.auth().onAuthStateChanged(async (user) => {
+                    const navActionContainer = document.getElementById('navActionContainer');
+                    if (user) {
+                        try {
+                            const userDoc = await db.collection('users').doc(user.email).get();
+                            let role = 'guest';
+                            if (userDoc.exists) {
+                                role = userDoc.data().role;
+                            }
+
+                            let buttonsHtml = '';
+                            if (role === 'manager') {
+                                buttonsHtml += `
+                                    <a href="/admin" class="mr-4 hover:text-blue-300 text-white transition-colors flex items-center text-sm font-medium">
+                                        <i class="fas fa-chart-line mr-1"></i> <span class="hidden sm:inline">แดชบอร์ดผู้จัดการ</span><span class="sm:hidden">แอดมิน</span>
+                                    </a>`;
+                            } else if (role === 'barber') {
+                                buttonsHtml += `
+                                    <a href="/barber" class="mr-4 hover:text-blue-300 text-white transition-colors flex items-center text-sm font-medium">
+                                        <i class="fa-solid fa-list-check mr-1"></i> <span class="hidden sm:inline">จัดการคิว</span><span class="sm:hidden">คิว</span>
+                                    </a>`;
+                            }
+                            
+                            buttonsHtml += `
+                                <button onclick="sessionStorage.setItem('loggingOut', 'true'); firebase.auth().signOut().then(() => window.location.replace('/login'));" class="bg-red-600 border border-red-500 hover:bg-red-700 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 shadow-sm flex items-center gap-2">
+                                    <i class="fa-solid fa-right-from-bracket"></i>
+                                    <span class="hidden sm:inline">ออกจากระบบ</span>
+                                    <span class="sm:hidden">ออก</span>
+                                </button>
+                            `;
+                            navActionContainer.innerHTML = buttonsHtml;
+                        } catch (error) {
+                            console.error("Error fetching user role:", error);
+                        }
+                    } else {
+                        // User is signed out, show Login button
+                        navActionContainer.innerHTML = `
+                            <a href="/login" class="bg-gray-800 border border-gray-700 hover:bg-gray-700 hover:border-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 shadow-sm flex items-center gap-2">
+                                <i class="fa-solid fa-user-lock"></i>
+                                <span class="hidden sm:inline">เข้าสู่ระบบพนักงาน</span>
+                                <span class="sm:hidden">พนักงาน</span>
+                            </a>
+                        `;
+                    }
+                    
+                    // Show navbar actions smoothly
+                    navActionContainer.classList.remove('opacity-0');
+                });
+            }
+        });
+    </script>
