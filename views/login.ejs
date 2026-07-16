@@ -81,16 +81,30 @@
 
                     // 2. ดึงข้อมูลผู้ใช้จาก Firestore ด้วย user.uid
                     const userDocRef = db.collection('users').doc(user.uid);
-                    const userDoc = await userDocRef.get();
+                    let userDoc = await userDocRef.get();
 
-                    // 3. ตรวจสอบสิทธิ์ (Role)
+                    // 3. หากไม่มีข้อมูลใน Firestore (ครั้งแรกที่ล็อกอิน) ให้สร้างข้อมูลเริ่มต้น
+                    if (!userDoc.exists) {
+                        const newUserData = {
+                            email: user.email,
+                            name: 'Admin',
+                            role: 'manager',
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+                        await userDocRef.set(newUserData);
+                        
+                        // ดึงข้อมูลมาใหม่หลังจากสร้างเสร็จ
+                        userDoc = await userDocRef.get();
+                    }
+
+                    // 4. ตรวจสอบสิทธิ์ (Role) อีกครั้ง
                     if (userDoc.exists && userDoc.data().role === 'manager') {
                         // หากมีสิทธิ์เป็น manager ให้นำทางไปยัง /admin
                         window.location.href = '/admin';
                     } else {
-                        // หากไม่มีสิทธิ์ หรือไม่พบข้อมูล
+                        // หากไม่มีสิทธิ์
                         await firebase.auth().signOut();
-                        alert('คุณไม่มีสิทธิ์เข้าถึงระบบแอดมิน');
+                        alert('ไม่มีสิทธิ์เข้าถึง');
                         
                         // คืนค่าปุ่ม
                         submitBtn.disabled = false;
