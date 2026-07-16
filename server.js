@@ -201,7 +201,64 @@ app.delete('/api/services/:id', async (req, res) => {
     }
 });
 
-// เริ่มต้น Server
-app.listen(port, () => {
-    console.log(`🚀 Server is running on http://localhost:${port}`);
+// Auto-Provisioning โครงสร้างฐานข้อมูล
+async function autoProvisionDatabase() {
+    if (!db) {
+        console.error("❌ Database not initialized, skipping auto-provisioning.");
+        return;
+    }
+    try {
+        console.log("🔍 Checking database for auto-provisioning...");
+
+        // ตรวจสอบ bookings
+        const bookingsSnap = await db.collection('bookings').limit(1).get();
+        if (bookingsSnap.empty) {
+            console.log("⚡ กำลังสร้าง Collection 'bookings'...");
+            await db.collection('bookings').doc('init').set({
+                queueNumber: 'A001',
+                lineUserId: 'mock-user-id',
+                barber: 'ช่างตัวอย่าง',
+                status: 'pending',
+                service: 'ตัดผมชาย',
+                createdAt: FieldValue.serverTimestamp()
+            });
+            console.log("✅ 'bookings' initialized.");
+        }
+
+        // ตรวจสอบ barbers
+        const barbersSnap = await db.collection('barbers').limit(1).get();
+        if (barbersSnap.empty) {
+            console.log("⚡ กำลังสร้าง Collection 'barbers'...");
+            await db.collection('barbers').doc('init').set({
+                name: 'ช่างตัวอย่าง',
+                status: 'ว่าง',
+                createdAt: FieldValue.serverTimestamp()
+            });
+            console.log("✅ 'barbers' initialized.");
+        }
+
+        // ตรวจสอบ services
+        const servicesSnap = await db.collection('services').limit(1).get();
+        if (servicesSnap.empty) {
+            console.log("⚡ กำลังสร้าง Collection 'services'...");
+            await db.collection('services').doc('init').set({
+                name: 'ตัดผมชาย',
+                price: 150,
+                status: 'available',
+                createdAt: FieldValue.serverTimestamp()
+            });
+            console.log("✅ 'services' initialized.");
+        }
+
+        console.log("🎯 Database auto-provisioning check completed.");
+    } catch (error) {
+        console.error("❌ Auto-provisioning error:", error);
+    }
+}
+
+// เริ่มต้น Server และ Provisioning ข้อมูล
+autoProvisionDatabase().then(() => {
+    app.listen(port, () => {
+        console.log(`🚀 Server is running on http://localhost:${port}`);
+    });
 });
