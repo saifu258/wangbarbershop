@@ -197,7 +197,16 @@
                     })
                 });
 
-                const result = await response.json();
+                // อ่านข้อมูลดิบจาก API ก่อน
+                const responseText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (e) {
+                    console.error("API returned non-JSON:", responseText);
+                    throw new Error("เซิร์ฟเวอร์ขัดข้องและไม่ได้ตอบกลับเป็น JSON (อาจจะเกิด Backend Crash ให้เช็ค Log ใน Render.com)");
+                }
+
                 if (!response.ok || !result.success) {
                     throw new Error(result.message || "การจองคิวผ่าน API ล้มเหลว");
                 }
