@@ -79,37 +79,25 @@
                     const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
                     const user = userCredential.user;
 
-                    // 2. ตรวจสอบอีเมล
-                    if (email !== "admin@wangbarber.com") {
-                        await firebase.auth().signOut();
-                        alert("อีเมลนี้ไม่ได้รับอนุญาต");
-                        window.location.href = '/';
-                        return;
-                    }
-
-                    // 3. ตรวจสอบ UID หากอีเมลเป็น admin@wangbarber.com
-                    if (user.uid !== "HfMS9K1PPSXinMFtqoANqOgL7ue2") {
-                        await firebase.auth().signOut();
-                        alert("ไม่สามารถยืนยันตัวตนแอดมินได้");
-                        window.location.href = '/';
-                        return;
-                    }
-
-                    // 4. ระบบ Auto-Provisioning (สร้าง Database ครั้งเดียว)
+                    // 2. ดึงข้อมูลผู้ใช้จาก Firestore ด้วย user.uid
                     const userDocRef = db.collection('users').doc(user.uid);
                     const userDoc = await userDocRef.get();
 
-                    if (!userDoc.exists) {
-                        await userDocRef.set({
-                            email: email,
-                            role: 'manager',
-                            name: 'Admin',
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
+                    // 3. ตรวจสอบสิทธิ์ (Role)
+                    if (userDoc.exists && userDoc.data().role === 'manager') {
+                        // หากมีสิทธิ์เป็น manager ให้นำทางไปยัง /admin
+                        window.location.href = '/admin';
+                    } else {
+                        // หากไม่มีสิทธิ์ หรือไม่พบข้อมูล
+                        await firebase.auth().signOut();
+                        alert('คุณไม่มีสิทธิ์เข้าถึงระบบแอดมิน');
+                        
+                        // คืนค่าปุ่ม
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                        submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                        return;
                     }
-
-                    // 5. นำทางไปยัง /admin ทันที
-                    window.location.href = '/admin';
 
                 } catch (error) {
                     console.error("Login Error:", error);
