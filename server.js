@@ -7,33 +7,8 @@ const fs = require('fs');
 require('dotenv').config();
 
 // Firebase Admin Setup
-const admin = require('firebase-admin');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
-let db;
-
-try {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        try {
-            // แปลงค่า JSON string จาก Environment Variable เป็น Object
-            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount)
-            });
-            console.log("✅ Firebase Admin Initialized with Environment Variable (FIREBASE_SERVICE_ACCOUNT)");
-        } catch (parseError) {
-            console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT. Please ensure it's a valid JSON string.");
-            console.error(parseError);
-        }
-    } else {
-        // หากไม่มี ENV (เช่น รันบน Cloud/Docker ที่มีการตั้งค่า Default Credentials ไว้แล้ว)
-        admin.initializeApp();
-        console.log("✅ Firebase Admin Initialized with Application Default Credentials");
-    }
-    
-    db = getFirestore();
-} catch (error) {
-    console.error("❌ Firebase Admin Initialization Error:", error);
-}
+const { db } = require('./config/firebase-admin');
+const { FieldValue } = require('firebase-admin/firestore');
 
 const app = express();
 const port = process.env.PORT || 3000;

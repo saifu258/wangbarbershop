@@ -1,6 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
-const { getFirestore } = require('firebase-admin/firestore');
+const { db } = require('../../config/firebase-admin');
 const { replyMessage } = require('../services/lineNotify');
 
 const router = express.Router();
@@ -23,7 +23,6 @@ router.post('/', async (req, res) => {
             return res.status(200).send("OK");
         }
 
-        const db = getFirestore();
         if (!db) {
             console.error("Database not initialized");
             return res.status(500).end();

@@ -1,5 +1,6 @@
 const express = require('express');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { FieldValue } = require('firebase-admin/firestore');
+const { db } = require('../../config/firebase-admin');
 const { pushFlexMessage, getBookingSuccessFlex, getCallQueueFlex } = require('../services/lineNotify');
 
 const router = express.Router();
@@ -13,7 +14,6 @@ router.post('/bookings', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Missing required fields' });
         }
 
-        const db = getFirestore();
         if (!db) {
             return res.status(500).json({ success: false, message: 'Database not initialized' });
         }
