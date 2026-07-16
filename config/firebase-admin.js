@@ -7,11 +7,12 @@ if (getApps().length === 0) {
     try {
         if (process.env.FIREBASE_SERVICE_ACCOUNT) {
             try {
+                // ⚠️ วาง JSON ของ Service Account จากโปรเจกต์ "wangbarbershop .shwfh" ไว้ใน Environment Variable นี้ ⚠️
                 // แปลงค่า JSON string จาก Environment Variable เป็น Object
                 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
                 initializeApp({
                     credential: cert(serviceAccount),
-                    projectId: process.env.FIREBASE_PROJECT_ID || 'wangbarber1'
+                    projectId: process.env.FIREBASE_PROJECT_ID || 'wangbarbershop'
                 });
                 console.log("✅ Firebase Admin Initialized with Environment Variable (FIREBASE_SERVICE_ACCOUNT)");
             } catch (parseError) {
@@ -31,6 +32,8 @@ if (getApps().length === 0) {
     }
 }
 
+const { getAuth } = require('firebase-admin/auth');
+
 const db = getFirestore();
 
-module.exports = { db };
+module.exports = { db, getAuth };

@@ -1127,42 +1127,28 @@
         const btn = document.getElementById('modalAddEmpBtn');
         const originalText = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
         btn.classList.add('opacity-70', 'cursor-not-allowed');
 
         try {
-            // สร้าง Secondary Firebase App เพื่อหลีกเลี่ยงการถูก Logout ออกจากบัญชี Admin หลัก
-            const secondaryApp = firebase.initializeApp(firebaseConfig, "SecondaryApp");
-            const newAuth = secondaryApp.auth();
-
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-
-            // สร้างบัญชีใหม่ใน Firebase Authentication
-            const userCredential = await newAuth.createUserWithEmailAndPassword(email, password);
-            const newUser = userCredential.user;
-            
-            await newAuth.signOut(); // ออกจากระบบในแอปจำลอง
-            secondaryApp.delete(); // ลบแอปจำลองทิ้งเพื่อคืนหน่วยความจำ
-
-            // Save new staff member into Firestore using UID
-            await db.collection('users').doc(newUser.uid).set({
-                name: name,
-                email: email,
-                role: role,
-                status: 'available',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            const response = await fetch('/api/staff', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password, role })
             });
 
-            showToast('✅ Staff added successfully', 'success');
-            closeAddStaffModal();
-            loadEmployees(); // Refresh the list
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                showToast(data.message || '✅ Staff added successfully', 'success');
+                closeAddStaffModal();
+                loadEmployees(); // Refresh the list
+            } else {
+                throw new Error(data.message || data.error || 'Failed to add staff');
+            }
         } catch (error) {
             console.error("Error adding staff:", error);
-            if (error.code === 'auth/email-already-in-use') {
-                showToast('อีเมลนี้มีในระบบแล้ว กรุณาใช้อีเมลอื่น', 'error');
-            } else {
-                showToast("เกิดข้อผิดพลาด: " + error.message, 'error');
-            }
+            showToast("เกิดข้อผิดพลาด: " + error.message, 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;

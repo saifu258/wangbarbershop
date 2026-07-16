@@ -1,6 +1,6 @@
 const express = require('express');
 const { FieldValue } = require('firebase-admin/firestore');
-const { db } = require('../../config/firebase-admin');
+const { db, getAuth } = require('../../config/firebase-admin');
 const { pushFlexMessage, getBookingSuccessFlex, getCallQueueFlex } = require('../services/lineNotify');
 
 const router = express.Router();
@@ -153,6 +153,78 @@ router.post('/verify-role', async (req, res) => {
         const errorUid = (req && req.body && req.body.uid) ? req.body.uid : 'Unknown UID';
         console.error(`[VerifyRole] Error verifying role for UID: ${errorUid} -`, error);
         res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+    }
+});
+
+// 4. เพิ่มพนักงาน (Staff Management)
+router.post('/staff', async (req, res) => {
+    try {
+        const { name, email, password, role } = req.body;
+        if (!name || !email || !password || !role) {
+            return res.status(400).json({ success: false, message: 'Missing required fields' });
+        }
+
+        console.log(`[AddStaff] Request received to add staff: ${email}, role: ${role}`);
+        const auth = getAuth();
+        let userRecord;
+        let isRepairMode = false;
+
+        try {
+            console.log(`[AddStaff] Attempting to create user in Auth for: ${email}`);
+            userRecord = await auth.createUser({
+                email: email,
+                password: password,
+                displayName: name,
+            });
+            console.log(`[AddStaff] User created in Auth successfully: ${userRecord.uid}`);
+        } catch (authError) {
+            if (authError.code === 'auth/email-already-exists') {
+                console.log(`[AddStaff] Email already exists in Auth. Switching to repair/sync mode for: ${email}`);
+                userRecord = await auth.getUserByEmail(email);
+                isRepairMode = true;
+            } else {
+                console.error(`[AddStaff] Auth Error:`, authError);
+                throw authError; // Rethrow if it's not the email-already-exists error
+            }
+        }
+
+        // เขียนลง Firestore
+        try {
+            console.log(`[AddStaff] Writing data to Firestore for UID: ${userRecord.uid}`);
+            await db.collection('users').doc(userRecord.uid).set({
+                name: name,
+                email: email,
+                role: role,
+                status: 'available',
+                createdAt: FieldValue.serverTimestamp()
+            }, { merge: true }); // ใช้ merge เพื่อไม่เขียนทับ createdAt เดิมกรณีซ่อมแซมข้อมูล
+            
+            console.log(`[AddStaff] Firestore write completed successfully.`);
+            return res.status(200).json({ 
+                success: true, 
+                message: isRepairMode ? 'ข้อมูลพนักงานถูกซิงค์เรียบร้อยแล้ว' : 'สร้างพนักงานใหม่สำเร็จ',
+                uid: userRecord.uid
+            });
+
+        } catch (firestoreError) {
+            console.error(`[AddStaff] Firestore Write Error:`, firestoreError);
+            // หากเป็นการสร้างใหม่ (ไม่ใช่ซ่อมแซม) และเขียน Firestore พัง ให้ลบ User ใน Auth ทิ้งเพื่อป้องกัน Data Inconsistency
+            if (!isRepairMode) {
+                console.log(`[AddStaff] Rolling back (Deleting User from Auth) UID: ${userRecord.uid}`);
+                await auth.deleteUser(userRecord.uid);
+                console.log(`[AddStaff] Rollback completed.`);
+            }
+            throw firestoreError;
+        }
+
+    } catch (error) {
+        console.error(`[AddStaff] Error processing request:`, error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Internal server error', 
+            error: error.message,
+            code: error.code
+        });
     }
 });
 

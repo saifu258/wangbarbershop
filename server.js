@@ -30,6 +30,7 @@ app.get('/js/firebase_config.js', (req, res) => {
     res.type('application/javascript');
     res.send(`
 // Dynamic Firebase Config from Environment Variables
+// ⚠️ วาง firebaseConfig ของโปรเจกต์ใหม่ "wangbarbershop .shwfh" ไว้ใน Environment Variables (.env หรือ Render.com) ⚠️
 const firebaseConfig = {
     apiKey: "${process.env.FIREBASE_API_KEY || ''}",
     authDomain: "${process.env.FIREBASE_AUTH_DOMAIN || ''}",
@@ -248,6 +249,20 @@ async function autoProvisionDatabase() {
                 createdAt: FieldValue.serverTimestamp()
             });
             console.log("✅ 'services' initialized.");
+        }
+
+        // ตรวจสอบ users
+        const usersSnap = await db.collection('users').limit(1).get();
+        if (usersSnap.empty) {
+            console.log("⚡ กำลังสร้าง Collection 'users'...");
+            await db.collection('users').doc('init_admin').set({
+                name: 'System Admin',
+                email: 'admin@wangbarbershop.com',
+                role: 'manager',
+                status: 'available',
+                createdAt: FieldValue.serverTimestamp()
+            });
+            console.log("✅ 'users' initialized.");
         }
 
         console.log("🎯 Database auto-provisioning check completed.");
