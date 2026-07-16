@@ -118,7 +118,46 @@
 
                 } catch (error) {
                     console.error("Login Error:", error);
-                    alert('Login Error: ' + error.message);
+                    
+                    // รหัส Error ของ Firebase รุ่นใหม่ๆ มักใช้ invalid-credential หรือ user-not-found
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
+                        // ถามผู้ใช้ว่าต้องการสร้างบัญชีใหม่หรือไม่
+                        const wantsToRegister = confirm('ไม่พบบัญชีนี้ในระบบ คุณต้องการสร้างเป็นบัญชีแอดมิน/พนักงานใหม่เลยหรือไม่?');
+                        
+                        if (wantsToRegister) {
+                            try {
+                                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังสร้างบัญชีใหม่...';
+                                
+                                // สร้างบัญชีใหม่ใน Firebase Auth
+                                const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+                                const user = userCredential.user;
+                                
+                                // ส่งไป Backend เพื่อเช็ค/กำหนดสิทธิ์ (Auto-provisioning)
+                                const response = await fetch('/api/verify-role', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ uid: user.uid, email: user.email })
+                                });
+                                
+                                const result = await response.json();
+                                
+                                if (result.success && result.role === 'manager') {
+                                    alert('สร้างบัญชีแอดมินสำเร็จ! กำลังเข้าสู่ระบบ...');
+                                    window.location.href = '/admin';
+                                } else if (result.success) {
+                                    window.location.href = '/admin'; // หรือไปหน้าของพนักงาน
+                                } else {
+                                    await firebase.auth().signOut();
+                                    alert('สร้างบัญชีสำเร็จ แต่ไม่สามารถตั้งค่าสิทธิ์ได้');
+                                }
+                            } catch (regError) {
+                                console.error("Registration Error:", regError);
+                                alert('ไม่สามารถสร้างบัญชีได้: ' + regError.message);
+                            }
+                        }
+                    } else {
+                        alert('Login Error: ' + error.message);
+                    }
                     
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalBtnText;
