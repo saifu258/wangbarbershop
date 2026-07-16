@@ -24,23 +24,18 @@ router.post('/bookings', async (req, res) => {
         let newBookingData = {};
 
         await db.runTransaction(async (transaction) => {
+            // 1. ส่วนอ่านข้อมูล (Reads): ต้องทำก่อนเขียนข้อมูลทั้งหมด
             const counterDoc = await transaction.get(counterRef);
-            let newNumber = 1;
+            const customerDoc = await transaction.get(db.collection('customers').doc(phone));
             
+            // 2. ส่วนประมวลผล (Processing)
+            let newNumber = 1;
             if (counterDoc.exists) {
                 newNumber = (counterDoc.data().currentNumber || 0) + 1;
             }
-            
             queueId = 'A' + String(newNumber).padStart(3, '0');
             
-            transaction.set(counterRef, {
-                currentNumber: newNumber,
-                lastUpdated: FieldValue.serverTimestamp()
-            }, { merge: true });
-
-            // ตรวจสอบว่าเบอร์โทรศัพท์นี้เคยผูก LINE ไว้หรือไม่
             let lineUserId = null;
-            const customerDoc = await transaction.get(db.collection('customers').doc(phone));
             if (customerDoc.exists && customerDoc.data().lineUserId) {
                 lineUserId = customerDoc.data().lineUserId;
             }
@@ -56,10 +51,17 @@ router.post('/bookings', async (req, res) => {
                 barber: barber,
                 status: 'pending',
                 createdAt: FieldValue.serverTimestamp(),
-                ...(lineUserId && { lineUserId }) // ถ้ามี lineUserId ให้แนบไปด้วย
+                ...(lineUserId && { lineUserId })
             };
 
+            // 3. ส่วนเขียนข้อมูล (Writes): ต้องทำหลังจากอ่านข้อมูลเสร็จสิ้นทั้งหมด
             const newBookingRef = db.collection('bookings').doc();
+            
+            transaction.set(counterRef, {
+                currentNumber: newNumber,
+                lastUpdated: FieldValue.serverTimestamp()
+            }, { merge: true });
+            
             transaction.set(newBookingRef, newBookingData);
         });
 
