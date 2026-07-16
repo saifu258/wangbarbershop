@@ -238,4 +238,45 @@ router.post('/staff', async (req, res) => {
     }
 });
 
+// 5. ดึงข้อมูลตั้งค่า LINE (LINE Settings)
+router.get('/settings/line', async (req, res) => {
+    try {
+        if (!db) return res.status(500).json({ success: false, message: 'Database not initialized' });
+        
+        const doc = await db.collection('settings').doc('shop').get();
+        if (doc.exists) {
+            const data = doc.data();
+            return res.status(200).json({
+                success: true,
+                lineToken: data.lineToken || '',
+                lineSecret: data.lineSecret || ''
+            });
+        }
+        return res.status(200).json({ success: true, lineToken: '', lineSecret: '' });
+    } catch (error) {
+        console.error("[GetLineSettings] Error:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+});
+
+// 6. บันทึกข้อมูลตั้งค่า LINE (LINE Settings)
+router.post('/settings/line', async (req, res) => {
+    try {
+        const { lineToken, lineSecret } = req.body;
+        
+        if (!db) return res.status(500).json({ success: false, message: 'Database not initialized' });
+
+        await db.collection('settings').doc('shop').set({
+            lineToken: lineToken || '',
+            lineSecret: lineSecret || '',
+            updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        res.status(200).json({ success: true, message: 'Settings saved successfully' });
+    } catch (error) {
+        console.error("[SaveLineSettings] Error:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+});
+
 module.exports = router;

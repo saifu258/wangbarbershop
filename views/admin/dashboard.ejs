@@ -832,15 +832,27 @@
 
     // โหลดการตั้งค่า
     async function loadShopSettings() {
+        // 1. ดึงข้อมูล LINE จาก Backend API
+        try {
+            const res = await fetch('/api/settings/line');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success) {
+                    if (data.lineToken) document.getElementById('settingLineToken').value = data.lineToken;
+                    if (data.lineSecret) document.getElementById('settingLineSecret').value = data.lineSecret;
+                }
+            }
+        } catch (e) {
+            console.error("Error loading LINE settings from API:", e);
+        }
+
+        // 2. ดึงข้อมูลอื่นๆ จาก Firestore
         if (typeof db !== 'undefined' && db !== null) {
             try {
-                // แก้ไขให้ใช้ onSnapshot หากต้องการให้เปลี่ยนทันที หรือ get() ถ้าดึงแค่ตอนโหลด
                 const doc = await db.collection('settings').doc('shop').get();
                 if (doc.exists) {
                     const data = doc.data();
                     if (data.shopName) document.getElementById('settingShopName').value = data.shopName;
-                    if (data.lineToken) document.getElementById('settingLineToken').value = data.lineToken;
-                    if (data.lineSecret) document.getElementById('settingLineSecret').value = data.lineSecret;
                     
                     if (data.logoBase64) {
                         currentLogoBase64 = data.logoBase64;
@@ -997,6 +1009,7 @@
     async function saveShopSettings(btn) {
         const shopName = document.getElementById('settingShopName').value.trim();
         const lineToken = document.getElementById('settingLineToken').value.trim();
+        const lineSecret = document.getElementById('settingLineSecret').value.trim();
 
         // [Validation] ตรวจสอบขนาดข้อมูลก่อนบันทึก
         // Base64 1 ตัวอักษร = 1 Byte. เราตั้ง Limit ไว้ที่ไม่เกิน ~800KB เพื่อความปลอดภัยของ Firestore (Max 1MB)
@@ -1013,29 +1026,34 @@
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
         btn.classList.add('opacity-70', 'cursor-not-allowed');
 
-        if (typeof db !== 'undefined' && db !== null) {
-            try {
+        try {
+            // 1. บันทึก LINE Token/Secret ผ่าน Backend API
+            const lineRes = await fetch('/api/settings/line', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lineToken, lineSecret })
+            });
+
+            if (!lineRes.ok) throw new Error("Failed to save LINE settings via API");
+
+            // 2. บันทึกข้อมูลอื่นๆ ผ่าน Firestore
+            if (typeof db !== 'undefined' && db !== null) {
                 const data = {
                     shopName: shopName,
-                    lineToken: lineToken,
-                    lineSecret: document.getElementById('settingLineSecret').value.trim(),
                     logoBase64: currentLogoBase64,
                     lineQrBase64: currentQrBase64,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
-                
                 await db.collection('settings').doc('shop').set(data, { merge: true });
-                alert("✅ บันทึกการตั้งค่าสำเร็จ!");
-            } catch (error) {
-                console.error("Error saving settings:", error);
-                alert("❌ เกิดข้อผิดพลาดในการบันทึกการตั้งค่า: " + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-                btn.classList.remove('opacity-70', 'cursor-not-allowed');
+            } else {
+                console.log("Mock Mode: Settings saved", { shopName, lineToken: lineToken ? "***" : "" });
             }
-        } else {
-            alert("✅ (โหมดจำลอง) บันทึกการตั้งค่าสำเร็จ!\n" + JSON.stringify({shopName, lineToken: lineToken ? "***" : ""}));
+
+            alert("✅ บันทึกการตั้งค่าสำเร็จ!");
+        } catch (error) {
+            console.error("Error saving settings:", error);
+            alert("❌ เกิดข้อผิดพลาดในการบันทึกการตั้งค่า: " + error.message);
+        } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
             btn.classList.remove('opacity-70', 'cursor-not-allowed');

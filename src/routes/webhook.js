@@ -29,11 +29,10 @@ router.post('/', async (req, res) => {
         }
 
         let lineSecret = process.env.LINE_CHANNEL_SECRET;
-        if (!lineSecret) {
-            const shopDoc = await db.collection("settings").doc("shop").get();
-            if (shopDoc.exists) {
-                lineSecret = shopDoc.data().lineSecret;
-            }
+        // ให้ความสำคัญกับ Secret จาก Firestore เพื่อให้แก้ผ่านหน้า Dashboard ได้ทันที
+        const shopDoc = await db.collection("settings").doc("shop").get();
+        if (shopDoc.exists && shopDoc.data().lineSecret) {
+            lineSecret = shopDoc.data().lineSecret;
         }
 
         if (!lineSecret) {

@@ -1,19 +1,32 @@
 const line = require('@line/bot-sdk');
 
-function getLineClient() {
-    const config = {
-        channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
-        channelSecret: process.env.LINE_CHANNEL_SECRET || ''
-    };
+async function getLineClient() {
+    let token = process.env.LINE_CHANNEL_ACCESS_TOKEN || '';
+    let secret = process.env.LINE_CHANNEL_SECRET || '';
+
+    try {
+        const { db } = require('../../config/firebase-admin');
+        if (db) {
+            const shopDoc = await db.collection("settings").doc("shop").get();
+            if (shopDoc.exists) {
+                const data = shopDoc.data();
+                if (data.lineToken) token = data.lineToken;
+                if (data.lineSecret) secret = data.lineSecret;
+            }
+        }
+    } catch (error) {
+        console.error("[getLineClient] Error fetching from Firestore:", error);
+    }
+
     return new line.messagingApi.MessagingApiClient({
-        channelAccessToken: config.channelAccessToken
+        channelAccessToken: token
     });
 }
 
 // 1. ตอบกลับข้อความ
 async function replyMessage(replyToken, text) {
     try {
-        const client = getLineClient();
+        const client = await getLineClient();
         if (!client.config.channelAccessToken) {
             console.log("[Mock] Reply Message:", text);
             return;
@@ -30,7 +43,7 @@ async function replyMessage(replyToken, text) {
 // 2. ส่ง Push Message ด้วย Flex Message
 async function pushFlexMessage(userId, altText, flexContents) {
     try {
-        const client = getLineClient();
+        const client = await getLineClient();
         if (!client.config.channelAccessToken) {
             console.log("[Mock] Push Flex Message to", userId, ":", altText);
             return;
