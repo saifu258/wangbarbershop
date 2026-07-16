@@ -531,12 +531,22 @@
                     window.location.replace('/login');
                 } else {
                     try {
-                        const userDoc = await db.collection('users').doc(user.uid).get();
-                        if (userDoc.exists && userDoc.data().role !== 'manager') {
-                            alert("❌ คุณไม่มีสิทธิ์เข้าถึงหน้าแดชบอร์ดผู้จัดการ");
+                        const response = await fetch('/api/verify-role', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uid: user.uid, email: user.email })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (!response.ok || !result.success) {
+                            alert("❌ ไม่พบข้อมูลสิทธิ์ผู้ใช้งาน หรือเกิดข้อผิดพลาด");
                             window.location.href = '/';
-                        } else if (!userDoc.exists) {
-                            alert("❌ ไม่พบข้อมูลสิทธิ์ผู้ใช้งาน");
+                            return;
+                        }
+
+                        if (result.role !== 'manager') {
+                            alert("❌ คุณไม่มีสิทธิ์เข้าถึงหน้าแดชบอร์ดผู้จัดการ");
                             window.location.href = '/';
                         } else {
                             // อนุญาตให้เข้าถึง

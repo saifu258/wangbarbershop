@@ -140,12 +140,13 @@ router.post('/verify-role', async (req, res) => {
         }
 
         const role = userDoc.data().role;
+        const name = userDoc.data().name;
         console.log(`[VerifyRole] User found. Role is: ${role}`);
         
         // แนะนำการตั้งค่าปิด Cache กรณีปัญหาบน Render
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         
-        return res.status(200).json({ success: true, role: role });
+        return res.status(200).json({ success: true, role: role, name: name });
 
     } catch (error) {
         // ดึง uid มาแสดงใน Log หากมี เพื่อให้ง่ายต่อการ Debug

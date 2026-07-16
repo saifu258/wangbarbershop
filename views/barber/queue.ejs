@@ -141,31 +141,39 @@
                     window.location.replace('/login');
                 } else {
                     try {
-                        const userDoc = await db.collection('users').doc(user.uid).get();
-                        if (userDoc.exists) {
-                            const role = userDoc.data().role;
-                            if (role !== 'barber' && role !== 'manager') {
-                                alert("❌ คุณไม่มีสิทธิ์เข้าถึงหน้าจัดการคิวช่าง");
-                                window.location.href = '/';
-                            } else {
-                                // ดึงชื่อช่างจาก Firestore
-                                const currentBarberName = userDoc.data().name || 'ช่างไม่มีชื่อ';
-                                
-                                // ล็อค UI Dropdown
-                                const selectEl = document.getElementById('currentBarberSelect');
-                                selectEl.innerHTML = `<option value="${currentBarberName}">${currentBarberName}</option>`;
-                                selectEl.value = currentBarberName;
-
-                                // ผ่าน
-                                document.getElementById('authOverlay').classList.add('opacity-0');
-                                setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
-                                
-                                // เริ่มโหลดข้อมูลคิว โดยใช้ชื่อและ UID ของช่างคนนี้เพื่อความแม่นยำ
-                                initializeQueueListener(currentBarberName, user.uid);
-                            }
-                        } else {
-                            alert("❌ ไม่พบข้อมูลสิทธิ์ผู้ใช้งาน");
+                        const response = await fetch('/api/verify-role', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uid: user.uid, email: user.email })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (!response.ok || !result.success) {
+                            alert("❌ ไม่พบข้อมูลสิทธิ์ผู้ใช้งาน หรือเกิดข้อผิดพลาด");
                             window.location.href = '/';
+                            return;
+                        }
+                        
+                        const role = result.role;
+                        if (role !== 'barber' && role !== 'manager') {
+                            alert("❌ คุณไม่มีสิทธิ์เข้าถึงหน้าจัดการคิวช่าง");
+                            window.location.href = '/';
+                        } else {
+                            // ดึงชื่อช่างจาก API result
+                            const currentBarberName = result.name || 'ช่างไม่มีชื่อ';
+                            
+                            // ล็อค UI Dropdown
+                            const selectEl = document.getElementById('currentBarberSelect');
+                            selectEl.innerHTML = `<option value="${currentBarberName}">${currentBarberName}</option>`;
+                            selectEl.value = currentBarberName;
+
+                            // ผ่าน
+                            document.getElementById('authOverlay').classList.add('opacity-0');
+                            setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
+                            
+                            // เริ่มโหลดข้อมูลคิว โดยใช้ชื่อและ UID ของช่างคนนี้เพื่อความแม่นยำ
+                            initializeQueueListener(currentBarberName, user.uid);
                         }
                     } catch (err) {
                         console.error("Auth check error:", err);
