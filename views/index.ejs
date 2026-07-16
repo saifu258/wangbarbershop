@@ -182,61 +182,27 @@
         // ตรวจสอบการเชื่อมต่อ Firebase และบันทึกข้อมูล
         if (typeof db !== 'undefined' && db !== null) {
             try {
-                // [Data Safety] ใช้ Transaction เพื่อดึงเลขคิวล่าสุดและบันทึกข้อมูลแบบไม่ซ้ำ
-                const counterRef = db.collection('settings').doc('queueCounter');
-                
-                await db.runTransaction(async (transaction) => {
-                    const counterDoc = await transaction.get(counterRef);
-                    let newNumber = 1;
-                    
-                    if (counterDoc.exists) {
-                        newNumber = (counterDoc.data().currentNumber || 0) + 1;
-                    }
-                    
-                    queueId = 'A' + String(newNumber).padStart(3, '0');
-                    
-                    transaction.set(counterRef, {
-                        currentNumber: newNumber,
-                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-
-                    const bookingData = {
-                        queueId: queueId,
+                // เรียกใช้ Backend API สำหรับจองคิว (รองรับการผูก LINE และ Push Message)
+                const response = await fetch('/api/bookings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
                         firstName: firstName,
                         lastName: lastName,
                         phone: phone,
                         serviceName: serviceName,
                         servicePrice: servicePrice,
                         barberId: barberId,
-                        barber: barberName,
-                        status: 'pending',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-
-                    const newBookingRef = db.collection('bookings').doc();
-                    transaction.set(newBookingRef, bookingData);
+                        barber: barberName
+                    })
                 });
-                
-                // ยิง LINE Notify Booking แบบ Asynchronous 
-                try {
-                    const response = await fetch('/api/notify/booking', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            queueNumber: queueId,
-                            customerName: `${firstName} ${lastName}`.trim(),
-                            service: serviceName,
-                            lineUserId: "MOCK_USER_ID_123" // ในระบบจริงอาจจะได้มาจากการ Login ด้วย LINE
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        console.warn("LINE Notify warning: API returned", response.status);
-                    }
-                } catch (notifyErr) {
-                    console.error("Error triggering LINE notify:", notifyErr);
-                    // ไม่ return เพราะจองคิวสำเร็จแล้ว แค่แจ้งเตือน LINE พังเฉยๆ
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || "การจองคิวผ่าน API ล้มเหลว");
                 }
+                
+                queueId = result.queueId;
 
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
