@@ -126,17 +126,27 @@ router.post('/verify-role', async (req, res) => {
         const userDoc = await userRef.get();
 
         if (!userDoc.exists) {
-            console.log(`[VerifyRole] User not found. Auto-provisioning manager role for ${email}...`);
-            const newUserData = {
-                email: email,
-                name: 'Admin',
-                role: 'manager',
-                createdAt: FieldValue.serverTimestamp()
-            };
-            await userRef.set(newUserData);
-            console.log(`[VerifyRole] Auto-provisioning completed for ${email}`);
-            
-            return res.status(200).json({ success: true, role: 'manager', isNewUser: true });
+            // อนุญาตให้เฉพาะ admin@wangbarbershop.com สมัครและรับสิทธิ์แอดมินอัตโนมัติ
+            if (email === 'admin@wangbarbershop.com') {
+                console.log(`[VerifyRole] Admin user not found. Auto-provisioning manager role for ${email}...`);
+                const newUserData = {
+                    email: email,
+                    name: 'System Admin',
+                    role: 'manager',
+                    createdAt: FieldValue.serverTimestamp()
+                };
+                await userRef.set(newUserData);
+                console.log(`[VerifyRole] Auto-provisioning completed for ${email}`);
+                
+                return res.status(200).json({ success: true, role: 'manager', isNewUser: true });
+            } else {
+                // หากเป็นอีเมลอื่นที่แอดมินไม่ได้สร้างข้อมูลไว้ให้ล่วงหน้า ให้ปฏิเสธการเข้าถึง
+                console.warn(`[VerifyRole] Unauthorized access attempt by ${email}`);
+                return res.status(403).json({ 
+                    success: false, 
+                    message: "คุณไม่มีสิทธิ์เข้าใช้งานระบบ (Unauthorized). กรุณาติดต่อแอดมินเพื่อเพิ่มข้อมูลพนักงานให้คุณก่อนเข้าใช้งาน" 
+                });
+            }
         }
 
         const role = userDoc.data().role;
