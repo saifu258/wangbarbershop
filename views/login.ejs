@@ -79,92 +79,45 @@
                     const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
                     const user = userCredential.user;
 
-                    // 2. เช็คสิทธิ์ (Role) จาก Firestore โดยหาด้วย UID ก่อน
-                    let userDoc = await db.collection('users').doc(user.uid).get();
+                    // 2. ตรวจสอบอีเมล
+                    if (email !== "admin@wangbarber.com") {
+                        await firebase.auth().signOut();
+                        alert("อีเมลนี้ไม่ได้รับอนุญาต");
+                        window.location.href = '/';
+                        return;
+                    }
 
-                    // 2.1 ถ้าไม่เจอ UID ให้ลองหาด้วย Email (เผื่อตั้งชื่อ Document ID เป็นอีเมลไว้)
+                    // 3. ตรวจสอบ UID หากอีเมลเป็น admin@wangbarber.com
+                    if (user.uid !== "HfMS9K1PPSXinMFtqoANqOgL7ue2") {
+                        await firebase.auth().signOut();
+                        alert("ไม่สามารถยืนยันตัวตนแอดมินได้");
+                        window.location.href = '/';
+                        return;
+                    }
+
+                    // 4. ระบบ Auto-Provisioning (สร้าง Database ครั้งเดียว)
+                    const userDocRef = db.collection('users').doc(user.uid);
+                    const userDoc = await userDocRef.get();
+
                     if (!userDoc.exists) {
-                        userDoc = await db.collection('users').doc(user.email).get();
+                        await userDocRef.set({
+                            email: email,
+                            role: 'manager',
+                            name: 'Admin',
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
                     }
 
-                    if (userDoc.exists) {
-                        const role = userDoc.data().role;
+                    // 5. นำทางไปยัง /admin ทันที
+                    window.location.href = '/admin';
 
-                        // รองรับทั้งคำว่า manager และ admin
-                        if (role === 'manager' || role === 'admin') {
-                            window.location.href = '/admin';
-                        } else if (role === 'barber') {
-                            window.location.href = '/barber';
-                        } else {
-                            alert(`✅ เข้าสู่ระบบสำเร็จ\nแต่สิทธิ์ของคุณคือ "${role}" ซึ่งไม่มีสิทธิ์เข้าหน้าจัดการ`);
-                            window.location.href = '/';
-                        }
-                    } else {
-                        // หากยังไม่เจอข้อมูลเลย ระบบจะพยายามสร้างให้อัตโนมัติเลย
-                        try {
-                            // TODO: [SECURITY] Remove this entire block once Admin access is restored
-                            console.warn('SECURITY ALERT: Emergency Admin Backdoor is active. Please remove this code after use.');
-
-                            const newRole = (email === 'admin@wangbarber.com') ? 'manager' : 'barber';
-                            const newName = (newRole === 'manager') ? 'Admin' : 'Staff';
-
-                            await db.collection('users').doc(user.uid).set({
-                                email: user.email,
-                                role: newRole,
-                                name: newName,
-                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-
-                            if (newRole === 'manager') {
-                                window.location.href = '/admin';
-                            } else {
-                                window.location.href = '/barber';
-                            }
-                        } catch (e) {
-                            alert(`✅ เข้าสู่ระบบผ่าน แต่เกิดข้อผิดพลาดในการสร้างสิทธิ์อัตโนมัติ!\n\nError: ${e.message}`);
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = originalBtnText;
-                            submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                        }
-                    }
                 } catch (error) {
                     console.error("Login Error:", error);
-
-                    if (error.code === 'auth/user-not-found') {
-                        try {
-                            const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
-                            const user = userCredential.user;
-
-                            // TODO: [SECURITY] Remove this entire block once Admin access is restored
-                            console.warn('SECURITY ALERT: Emergency Admin Backdoor is active. Please remove this code after use.');
-
-                            const newRole = (email === 'admin@wangbarber.com') ? 'manager' : 'barber';
-                            const newName = (newRole === 'manager') ? 'Admin' : 'Staff';
-
-                            await db.collection('users').doc(user.uid).set({
-                                email: user.email,
-                                role: newRole,
-                                name: newName,
-                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-
-                            if (newRole === 'manager') {
-                                window.location.href = '/admin';
-                            } else {
-                                window.location.href = '/barber';
-                            }
-                        } catch (seedError) {
-                            alert('Login Error: ' + seedError.message);
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = originalBtnText;
-                            submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                        }
-                    } else {
-                        alert('Login Error: ' + error.message);
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnText;
-                        submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
-                    }
+                    alert('Login Error: ' + error.message);
+                    
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                    submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
                 }
             } else if (!firebase || !firebase.auth) {
                 alert("⚠️ ระบบ Firebase Auth ยังไม่พร้อมใช้งาน");
