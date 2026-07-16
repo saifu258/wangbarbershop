@@ -34,6 +34,13 @@ if (getApps().length === 0) {
 
 const { getAuth } = require('firebase-admin/auth');
 
-const db = getFirestore();
+let db = null;
+
+try {
+    // ลองดึง Firestore
+    db = getFirestore();
+} catch (error) {
+    console.error("❌ Cannot initialize Firestore. Check your Firebase Admin credentials.");
+}
 
 module.exports = { db, getAuth };
