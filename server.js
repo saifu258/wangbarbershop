@@ -97,34 +97,65 @@ app.get('/barber', (req, res) => res.render('barber/queue', { title: 'จัด�
 // 1. Webhook ของ LINE
 app.post('/api/webhook', async (req, res) => {
     try {
-        if (!db) return res.status(500).send("Database not initialized");
+        // 1. ดักจับ Dummy Event จาก LINE (สำหรับการกดปุ่ม Verify)
+        const events = req.body.events;
+        if (!events || events.length === 0) {
+            console.log("Received empty events (Dummy Verification).");
+            return res.status(200).send("OK");
+        }
 
-        // ดึงการตั้งค่าจาก Firestore
-        const shopDoc = await db.collection("settings").doc("shop").get();
-        if (!shopDoc.exists) return res.status(500).send("Configuration Missing");
-        
-        const lineSecret = shopDoc.data().lineSecret;
-        if (!lineSecret) return res.status(500).send("LINE Channel Secret Missing");
+        const isDummyEvent = events.some(event => 
+            event.replyToken === "00000000000000000000000000000000" || 
+            event.replyToken === "ffffffffffffffffffffffffffffffff"
+        );
+
+        if (isDummyEvent) {
+            console.log("Received dummy event with dummy replyToken (LINE Verification).");
+            return res.status(200).send("OK");
+        }
+
+        if (!db) {
+            console.error("Database not initialized");
+            return res.status(500).end();
+        }
+
+        // 4. ตรวจสอบตัวแปร Environment Variables ก่อนค่อยดึงจาก Firestore
+        let lineSecret = process.env.LINE_CHANNEL_SECRET;
+        if (!lineSecret) {
+            const shopDoc = await db.collection("settings").doc("shop").get();
+            if (shopDoc.exists) {
+                lineSecret = shopDoc.data().lineSecret;
+            }
+        }
+
+        if (!lineSecret) {
+            console.error("LINE Channel Secret Missing");
+            return res.status(500).end();
+        }
 
         // ตรวจสอบ X-Line-Signature
         const signature = req.headers["x-line-signature"];
-        if (!signature) return res.status(400).send("Bad Request: Missing Signature");
+        if (!signature) {
+            console.warn("Bad Request: Missing Signature");
+            return res.status(400).end();
+        }
 
         const bodyStr = JSON.stringify(req.body);
         const hash = crypto.createHmac("SHA256", lineSecret).update(bodyStr).digest("base64");
         
         if (hash !== signature) {
             console.warn("Signature validation failed! Unauthorized access.");
-            return res.status(401).send("Unauthorized: Invalid Signature");
+            return res.status(401).end();
         }
 
-        console.log("Webhook verified successfully! Events:", JSON.stringify(req.body.events));
+        console.log("Webhook verified successfully! Events:", JSON.stringify(events));
         
         // ตอบกลับ LINE ทันที
         res.status(200).send("OK");
     } catch (error) {
+        // 2. เพิ่ม Try-Catch Block พร้อมพิมพ์ Log และไม่ให้แอปแครช
         console.error("Webhook Error:", error);
-        res.status(500).send("Internal Server Error");
+        res.status(500).end();
     }
 });
 
@@ -135,9 +166,14 @@ app.post('/api/notify/call', async (req, res) => {
         
         if (!db) return res.status(500).json({ success: false, message: "Database not initialized" });
 
-        // ดึง Token จาก Firestore
-        const shopDoc = await db.collection("settings").doc("shop").get();
-        const lineToken = shopDoc.exists ? shopDoc.data().lineToken : null;
+        // ดึง Token จาก Environment Variable หรือ Firestore
+        let lineToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+        if (!lineToken) {
+            const shopDoc = await db.collection("settings").doc("shop").get();
+            if (shopDoc.exists) {
+                lineToken = shopDoc.data().lineToken;
+            }
+        }
 
         if (!lineToken || !lineUserId) {
             console.log("[Mock LINE API] Notify Call:", { lineUserId, queueNumber });
