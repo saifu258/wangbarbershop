@@ -88,14 +88,26 @@
                     
                     const result = await response.json();
 
-                    // 3. ตรวจสอบผลลัพธ์ (Role)
-                    if (response.ok && result.success && result.role === 'manager') {
+                    // 3. ตรวจสอบสถานะการตอบกลับ
+                    if (!response.ok || !result.success) {
+                        await firebase.auth().signOut();
+                        alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถตรวจสอบสิทธิ์ได้'));
+                        
+                        // คืนค่าปุ่ม
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                        submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                        return;
+                    }
+
+                    // 4. ตรวจสอบ Role
+                    if (result.role === 'manager') {
                         // หากมีสิทธิ์เป็น manager ให้นำทางไปยัง /admin
                         window.location.href = '/admin';
                     } else {
                         // หากไม่มีสิทธิ์
                         await firebase.auth().signOut();
-                        alert('ไม่มีสิทธิ์เข้าถึง: ' + (result.message || 'ไม่อนุญาต'));
+                        alert('ไม่มีสิทธิ์เข้าถึงระบบแอดมิน');
                         
                         // คืนค่าปุ่ม
                         submitBtn.disabled = false;
