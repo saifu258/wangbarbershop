@@ -106,4 +106,51 @@ router.post('/call-queue', async (req, res) => {
     }
 });
 
+// 3. ตรวจสอบสิทธิ์ผู้ใช้และ Auto-Provisioning (สำหรับหน้า Login)
+router.post('/verify-role', async (req, res) => {
+    try {
+        const { uid, email } = req.body;
+        
+        if (!uid || !email) {
+            return res.status(400).json({ success: false, message: "Missing uid or email" });
+        }
+
+        if (!db) {
+            console.error("[VerifyRole] Database not initialized");
+            return res.status(500).json({ success: false, message: "Database not initialized" });
+        }
+
+        console.log(`[VerifyRole] Checking role for UID: ${uid}, Email: ${email}`);
+        
+        const userRef = db.collection('users').doc(uid);
+        const userDoc = await userRef.get();
+
+        if (!userDoc.exists) {
+            console.log(`[VerifyRole] User not found. Auto-provisioning manager role for ${email}...`);
+            const newUserData = {
+                email: email,
+                name: 'Admin',
+                role: 'manager',
+                createdAt: FieldValue.serverTimestamp()
+            };
+            await userRef.set(newUserData);
+            console.log(`[VerifyRole] Auto-provisioning completed for ${email}`);
+            
+            return res.status(200).json({ success: true, role: 'manager', isNewUser: true });
+        }
+
+        const role = userDoc.data().role;
+        console.log(`[VerifyRole] User found. Role is: ${role}`);
+        
+        // แนะนำการตั้งค่าปิด Cache กรณีปัญหาบน Render
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+        
+        return res.status(200).json({ success: true, role: role });
+
+    } catch (error) {
+        console.error("[VerifyRole] Error verifying role:", error);
+        res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+    }
+});
+
 module.exports = router;

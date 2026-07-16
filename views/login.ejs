@@ -79,32 +79,23 @@
                     const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
                     const user = userCredential.user;
 
-                    // 2. ดึงข้อมูลผู้ใช้จาก Firestore ด้วย user.uid
-                    const userDocRef = db.collection('users').doc(user.uid);
-                    let userDoc = await userDocRef.get();
+                    // 2. เรียกใช้ API ฝั่ง Backend เพื่อตรวจสอบและตั้งค่าสิทธิ์ (ลดปัญหาสิทธิ์ฝั่ง Frontend)
+                    const response = await fetch('/api/verify-role', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uid: user.uid, email: user.email })
+                    });
+                    
+                    const result = await response.json();
 
-                    // 3. หากไม่มีข้อมูลใน Firestore (ครั้งแรกที่ล็อกอิน) ให้สร้างข้อมูลเริ่มต้น
-                    if (!userDoc.exists) {
-                        const newUserData = {
-                            email: user.email,
-                            name: 'Admin',
-                            role: 'manager',
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        };
-                        await userDocRef.set(newUserData);
-                        
-                        // ดึงข้อมูลมาใหม่หลังจากสร้างเสร็จ
-                        userDoc = await userDocRef.get();
-                    }
-
-                    // 4. ตรวจสอบสิทธิ์ (Role) อีกครั้ง
-                    if (userDoc.exists && userDoc.data().role === 'manager') {
+                    // 3. ตรวจสอบผลลัพธ์ (Role)
+                    if (response.ok && result.success && result.role === 'manager') {
                         // หากมีสิทธิ์เป็น manager ให้นำทางไปยัง /admin
                         window.location.href = '/admin';
                     } else {
                         // หากไม่มีสิทธิ์
                         await firebase.auth().signOut();
-                        alert('ไม่มีสิทธิ์เข้าถึง');
+                        alert('ไม่มีสิทธิ์เข้าถึง: ' + (result.message || 'ไม่อนุญาต'));
                         
                         // คืนค่าปุ่ม
                         submitBtn.disabled = false;
