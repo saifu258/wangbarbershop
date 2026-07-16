@@ -591,38 +591,75 @@
         });
     }
 
-    // 2. ดึงข้อมูลจาก Firebase (แบบ Real-time และทั้งหมด)
-    function loadData() {
-        if (typeof db !== 'undefined' && db !== null) {
-            try {
-                // ดึงข้อมูลคิวที่เสร็จแล้วทั้งหมดมาครั้งเดียวแบบ Real-time เพื่อให้ฟิลเตอร์ Client-side ทำงานได้รวดเร็ว
-                db.collection("bookings")
-                    .where("status", "==", "completed")
-                    .onSnapshot(snapshot => {
-                        allCompletedBookings = [];
-                        snapshot.forEach(doc => {
-                            allCompletedBookings.push({ id: doc.id, ...doc.data() });
-                        });
-                        
-                        // Sort by time (latest first)
-                        allCompletedBookings.sort((a,b) => {
-                            const timeA = a.completedAt?.toDate ? a.completedAt.toDate().getTime() : new Date(a.completedAt || 0).getTime();
-                            const timeB = b.completedAt?.toDate ? b.completedAt.toDate().getTime() : new Date(b.completedAt || 0).getTime();
-                            return timeB - timeA;
-                        });
-
-                        applyFilters(); // กรองและแสดงผลทันที
-                    }, error => {
-                        console.error("Error listening to bookings:", error);
-                        showMockData("เกิดข้อผิดพลาดในการดึงข้อมูลจากฐานข้อมูล");
-                    });
-
-            } catch (error) {
-                console.error("Error loading data setup:", error);
-                showMockData("เกิดข้อผิดพลาดในการตั้งค่าฐานข้อมูล");
+    // 2. ดึงข้อมูลจาก Firebase (แบบดึงข้อมูลจริงรายวัน)
+    async function loadData() {
+        // ตรวจสอบการเชื่อมต่อ Firebase
+        if (typeof db === 'undefined' || !db) {
+            if (typeof firebase !== 'undefined') {
+                window.db = firebase.firestore();
+            } else {
+                showMockData("Firebase SDK not found");
+                return;
             }
-        } else {
-            showMockData("ไม่ได้ตั้งค่า Firebase Configuration");
+        }
+        console.log('Firebase Connected');
+
+        try {
+            // วันที่ปัจจุบัน YYYY-MM-DD
+            const today = new Date();
+            const dateStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+
+            // ดึงข้อมูลจริง กรองข้อมูลโดยใช้ .where('date', '==', [วันที่ปัจจุบัน])
+            const snapshot = await db.collection("bookings")
+                .where("date", "==", dateStr)
+                .where("status", "==", "completed")
+                .get();
+
+            // ระบบ Auto-Initialize: ถ้าไม่มีข้อมูล ให้สร้าง 1 รายการอัตโนมัติ
+            if (snapshot.empty) {
+                console.log("No bookings found for today. Auto-initializing data...");
+                await db.collection('bookings').add({
+                    queueNumber: "AUTO001",
+                    serviceName: "ตัดผมชาย",
+                    servicePrice: 150,
+                    barber: "ช่างตัวอย่าง",
+                    status: "completed",
+                    date: dateStr,
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                // เมื่อสร้างข้อมูลเสร็จ ให้ดึงข้อมูลใหม่มาแสดงทันที
+                return loadData(); 
+            }
+
+            // คำนวณจำนวนลูกค้า (count) และรายได้รวม (sum) จากข้อมูลจริง
+            let count = 0;
+            let sum = 0;
+            allCompletedBookings = [];
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                count++;
+                sum += Number(data.servicePrice || 0);
+                allCompletedBookings.push({ id: doc.id, ...data });
+            });
+
+            // นำผลลัพธ์ไปแสดงแทน HTML
+            document.getElementById('totalHeads').innerHTML = `${count} <span class="text-lg font-medium text-gray-400">คน</span>`;
+            document.getElementById('totalRevenue').innerText = sum;
+
+            // ซ่อนแถบสีแดง (แจ้งเตือน Mock Data) ทันที
+            const errorBanner = document.getElementById('firebaseErrorBanner');
+            if (errorBanner) {
+                errorBanner.style.display = 'none';
+            }
+
+            // เรียกให้แสดงผลตาราง
+            applyFilters();
+
+        } catch (error) {
+            // บันทึก Error ลง Console
+            console.error("Error fetching data from Firebase:", error);
+            showMockData("เกิดข้อผิดพลาดในการดึงข้อมูลจริง");
         }
     }
 
