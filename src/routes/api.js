@@ -148,7 +148,9 @@ router.post('/verify-role', async (req, res) => {
         return res.status(200).json({ success: true, role: role });
 
     } catch (error) {
-        console.error("[VerifyRole] Error verifying role:", error);
+        // ดึง uid มาแสดงใน Log หากมี เพื่อให้ง่ายต่อการ Debug
+        const errorUid = (req && req.body && req.body.uid) ? req.body.uid : 'Unknown UID';
+        console.error(`[VerifyRole] Error verifying role for UID: ${errorUid} -`, error);
         res.status(500).json({ success: false, message: "Internal server error: " + error.message });
     }
 });
