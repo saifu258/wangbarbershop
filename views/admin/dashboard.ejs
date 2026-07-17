@@ -1061,42 +1061,79 @@
     }
 
     // 6. ระบบจัดการพนักงาน (Employee Management)
+    let employeeUnsubscribe = null;
+
     function loadEmployees() {
         if (typeof db !== 'undefined' && db !== null) {
-            // ดึงเฉพาะ role = barber เพื่อมาแสดงในตาราง (สามารถเปลี่ยนดึงทั้งหมดได้)
-            db.collection('users').where('role', '==', 'barber').onSnapshot(snapshot => {
-                const tbody = document.getElementById('employeeBody');
-                if (snapshot.empty) {
-                    tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-500">ไม่มีข้อมูลพนักงานช่างตัดผม</td></tr>`;
-                    return;
-                }
-                
-                let html = '';
-                snapshot.forEach(doc => {
-                    const emp = { email: doc.id, ...doc.data() };
-                    const isActive = emp.status === 'active';
+            // Subscribe เพียงครั้งเดียว (Cleanup if already subscribed)
+            if (employeeUnsubscribe) {
+                employeeUnsubscribe();
+            }
+            
+            console.log("Loaded Employees");
+
+            // ดึงเฉพาะ role = barber (และไม่มี status = deleted เผื่อไว้)
+            employeeUnsubscribe = db.collection('users')
+                .where('role', '==', 'barber')
+                .onSnapshot(snapshot => {
+                    console.log("Firestore Snapshot Updated");
                     
-                    html += `
-                        <tr class="hover:bg-blue-50/50 transition-colors group">
-                            <td class="p-4 font-bold text-gray-800">${emp.name || '-'}</td>
-                            <td class="p-4 text-gray-500 text-sm hidden sm:table-cell">${emp.email}</td>
-                            <td class="p-4 text-center">
-                                <span class="px-3 py-1 rounded-full text-xs font-bold ${isActive ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}">
-                                    ${isActive ? '<i class="fa-solid fa-circle-check"></i> เปิดใช้งาน' : '<i class="fa-solid fa-circle-xmark"></i> ปิดใช้งาน'}
-                                </span>
-                            </td>
-                            <td class="p-4 text-center flex justify-center gap-2">
-                                <button onclick="toggleEmployeeStatus('${emp.email}', '${emp.status}')" class="${isActive ? 'bg-red-50 text-red-600 hover:bg-red-100 border-red-200' : 'bg-green-50 text-green-600 hover:bg-green-100 border-green-200'} px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors shadow-sm" title="${isActive ? 'เปลี่ยนสถานะเป็น ปิดใช้งาน' : 'เปลี่ยนสถานะเป็น เปิดใช้งาน'}">
-                                    <i class="fa-solid fa-toggle-${isActive ? 'off' : 'on'}"></i>
-                                </button>
-                                <button onclick="deleteEmployee('${emp.email}')" class="bg-white text-gray-400 hover:bg-red-50 hover:text-red-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-gray-200 hover:border-red-200 transition-colors shadow-sm" title="ลบข้อมูลพนักงาน">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
+                    // Tracking Changes for Console Log
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added') {
+                            console.log("Employee Created", change.doc.id);
+                        }
+                        if (change.type === 'modified') {
+                            console.log("Employee Updated", change.doc.id);
+                        }
+                        if (change.type === 'removed') {
+                            console.log("Employee Deleted", change.doc.id);
+                        }
+                    });
+
+                    const tbody = document.getElementById('employeeBody');
+                    if (snapshot.empty) {
+                        tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-500">ไม่มีข้อมูลพนักงานช่างตัดผม</td></tr>`;
+                        return;
+                    }
+                    
+                    let html = '';
+                    snapshot.forEach(doc => {
+                        const emp = { id: doc.id, ...doc.data() };
+                        // Skip soft-deleted (if any)
+                        if (emp.status === 'deleted') return;
+
+                        const isActive = emp.status === 'active';
+                        
+                        // ใช้ Document ID ของ Firestore เป็น id อ้างอิงแทน email
+                        html += `
+                            <tr id="emp-${emp.id}" class="hover:bg-blue-50/50 transition-colors group">
+                                <td class="p-4 font-bold text-gray-800">${emp.name || '-'}</td>
+                                <td class="p-4 text-gray-500 text-sm hidden sm:table-cell">${emp.email}</td>
+                                <td class="p-4 text-center">
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold ${isActive ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}">
+                                        ${isActive ? '<i class="fa-solid fa-circle-check"></i> เปิดใช้งาน' : '<i class="fa-solid fa-circle-xmark"></i> ปิดใช้งาน'}
+                                    </span>
+                                </td>
+                                <td class="p-4 text-center flex justify-center gap-2">
+                                    <button onclick="toggleEmployeeStatus('${emp.id}', '${emp.status}')" class="${isActive ? 'bg-red-50 text-red-600 hover:bg-red-100 border-red-200' : 'bg-green-50 text-green-600 hover:bg-green-100 border-green-200'} px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors shadow-sm" title="${isActive ? 'เปลี่ยนสถานะเป็น ปิดใช้งาน' : 'เปลี่ยนสถานะเป็น เปิดใช้งาน'}">
+                                        <i class="fa-solid fa-toggle-${isActive ? 'off' : 'on'}"></i>
+                                    </button>
+                                    <button onclick="deleteEmployee('${emp.id}')" class="bg-white text-gray-400 hover:bg-red-50 hover:text-red-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-gray-200 hover:border-red-200 transition-colors shadow-sm" title="ลบข้อมูลพนักงาน">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    // ป้องกัน html ว่างกรณีที่ทุกอันเป็น deleted (ถ้ามี)
+                    if(html === '') {
+                        tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-500">ไม่มีข้อมูลพนักงานช่างตัดผม</td></tr>`;
+                    } else {
+                        tbody.innerHTML = html;
+                    }
                 });
-                tbody.innerHTML = html;
                 
                 // Populating Filter Dropdown
                 const barberSelect = document.getElementById('filterBarber');
@@ -1197,7 +1234,7 @@
             if (response.ok && data.success) {
                 showToast(data.message || '✅ Staff added successfully', 'success');
                 closeAddStaffModal();
-                loadEmployees(); // Refresh the list
+                // ข้อมูลจะอัปเดตอัตโนมัติผ่าน onSnapshot ไม่ต้อง loadEmployees() ซ้ำ
             } else {
                 throw new Error(data.message || data.error || 'Failed to add staff');
             }
@@ -1211,22 +1248,22 @@
         }
     }
 
-    async function toggleEmployeeStatus(email, currentStatus) {
-        if (!confirm(`ยืนยันการเปลี่ยนสถานะของ ${email} หรือไม่?`)) return;
+    async function toggleEmployeeStatus(id, currentStatus) {
+        if (!confirm(`ยืนยันการเปลี่ยนสถานะพนักงานหรือไม่?`)) return;
         try {
             const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-            await db.collection('users').doc(email).update({ status: newStatus });
+            await db.collection('users').doc(id).update({ status: newStatus });
         } catch (error) {
             console.error("Error updating status:", error);
             alert("❌ เกิดข้อผิดพลาดในการเปลี่ยนสถานะ: " + error.message);
         }
     }
 
-    async function deleteEmployee(email) {
-        if (!confirm(`⚠️ ยืนยันการลบสิทธิ์ของ ${email} หรือไม่?\n\n(หมายเหตุ: การลบนี้จะตัดสิทธิ์การเข้าระบบทันที แต่ข้อมูลใน Auth ต้องไปลบในหน้า Firebase Console)`)) return;
+    async function deleteEmployee(id) {
+        if (!confirm(`⚠️ ยืนยันการลบสิทธิ์พนักงานหรือไม่?\n\n(หมายเหตุ: การลบนี้จะนำข้อมูลออกจากตารางทันที และช่างจะไม่มีสิทธิ์ Login)`)) return;
         try {
-            await db.collection('users').doc(email).delete();
-            alert(`✅ ลบข้อมูลพนักงาน ${email} สำเร็จ`);
+            await db.collection('users').doc(id).delete();
+            alert(`✅ ลบข้อมูลพนักงานสำเร็จ`);
         } catch (error) {
             console.error("Error deleting employee:", error);
             alert("❌ เกิดข้อผิดพลาดในการลบพนักงาน: " + error.message);
