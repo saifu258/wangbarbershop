@@ -484,9 +484,13 @@
             btn.classList.add('opacity-70', 'cursor-not-allowed');
 
             try {
+                const today = new Date();
+                const dateStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+
                 await db.collection("bookings").doc(docId).update({
                     status: 'completed',
-                    completedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    date: dateStr
                 });
                 Swal.fire({
                     title: 'จบงานสำเร็จ!',

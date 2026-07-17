@@ -40,6 +40,9 @@ router.post('/bookings', async (req, res) => {
                 lineUserId = customerDoc.data().lineUserId;
             }
 
+            const today = new Date();
+            const dateStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+
             newBookingData = {
                 queueId: queueId,
                 firstName: firstName,
@@ -50,6 +53,7 @@ router.post('/bookings', async (req, res) => {
                 barberId: barberId,
                 barber: barber,
                 status: 'pending',
+                date: dateStr,
                 createdAt: FieldValue.serverTimestamp(),
                 ...(lineUserId && { lineUserId })
             };
