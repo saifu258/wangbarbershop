@@ -95,6 +95,34 @@ router.post('/', async (req, res) => {
                 } else {
                     await replyMessage(event.replyToken, `ขออภัยครับ ไม่พบคิวหมายเลข ${text} ที่กำลังรอรับบริการ หรือรูปแบบหมายเลขไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง`);
                 }
+            } else if (event.type === 'unfollow') {
+                const userId = event.source.userId;
+                console.log(`[Unfollow Event] User ${userId} blocked or unfollowed the bot.`);
+                
+                // หา customer ที่มี lineUserId นี้และอัปเดตสถานะการบล็อค
+                const customersSnapshot = await db.collection('customers').where('lineUserId', '==', userId).get();
+                if (!customersSnapshot.empty) {
+                    const batch = db.batch();
+                    customersSnapshot.docs.forEach(doc => {
+                        batch.update(doc.ref, { isLineActive: false, lineUnfollowedAt: new Date() });
+                    });
+                    await batch.commit();
+                    console.log(`Updated ${customersSnapshot.size} customer(s) to isLineActive: false`);
+                }
+            } else if (event.type === 'follow') {
+                const userId = event.source.userId;
+                console.log(`[Follow Event] User ${userId} followed the bot.`);
+                
+                // หา customer ที่มี lineUserId นี้และอัปเดตสถานะ (กรณีเคย block แล้วกลับมา follow ใหม่)
+                const customersSnapshot = await db.collection('customers').where('lineUserId', '==', userId).get();
+                if (!customersSnapshot.empty) {
+                    const batch = db.batch();
+                    customersSnapshot.docs.forEach(doc => {
+                        batch.update(doc.ref, { isLineActive: true, lineFollowedAt: new Date() });
+                    });
+                    await batch.commit();
+                    console.log(`Updated ${customersSnapshot.size} customer(s) to isLineActive: true`);
+                }
             }
         }
 
