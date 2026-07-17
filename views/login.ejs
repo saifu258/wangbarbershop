@@ -79,6 +79,17 @@
                     const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
                     const user = userCredential.user;
 
+                    console.log("Firebase User Loaded");
+                    console.log("Checking Admin Email");
+
+                    // [Bypass for Admin]
+                    if (user.email === 'admin@wangbarbershop.com') {
+                        console.log("Redirect Admin (Bypass)");
+                        window.location.href = '/admin';
+                        return;
+                    }
+
+                    console.log("Loading User Document");
                     // 2. เรียกใช้ API ฝั่ง Backend เพื่อตรวจสอบและตั้งค่าสิทธิ์ (ลดปัญหาสิทธิ์ฝั่ง Frontend)
                     const response = await fetch('/api/verify-role', {
                         method: 'POST',
@@ -91,44 +102,42 @@
                     // 3. ตรวจสอบสถานะการตอบกลับ
                     if (!response.ok || !result.success) {
                         await firebase.auth().signOut();
+                        console.log("Permission Denied");
                         alert(result.message || 'เกิดข้อผิดพลาด: ไม่สามารถตรวจสอบสิทธิ์ได้');
-                        
-                        // คืนค่าปุ่ม
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnText;
-                        submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
                         return;
                     }
 
                     // 4. ตรวจสอบ Role เพื่อพิจารณาการ Redirect
                     if (result.role === 'manager') {
+                        console.log("User Document Found");
+                        console.log("Redirect Admin");
                         // หากมีสิทธิ์เป็น manager ให้นำทางไปยัง /admin
                         window.location.href = '/admin';
                     } else if (result.role === 'barber') {
+                        console.log("User Document Found");
+                        console.log("Redirect Barber");
                         // หากมีสิทธิ์เป็นช่างตัดผม ให้นำทางไปยัง /barber
                         window.location.href = '/barber';
                     } else {
+                        console.log("Permission Denied");
                         // หากไม่มีสิทธิ์
                         await firebase.auth().signOut();
                         alert('ไม่มีสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแลระบบ');
-                        
-                        // คืนค่าปุ่ม
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnText;
-                        submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
                         return;
                     }
 
                 } catch (error) {
                     console.error("Login Error:", error);
-                    
+                    console.log("Permission Denied (Error)");
                     // รหัส Error ของ Firebase สำหรับ Invalid Credential / User Not Found
                     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
                          alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแลระบบ');
                     } else {
                         alert('Login Error: ' + error.message);
                     }
-                    
+                } finally {
+                    // คืนค่าปุ่ม
+                    console.log("Loading Finished");
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalBtnText;
                     submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');

@@ -523,6 +523,7 @@
         // [Route Protection] ดักการเข้าถึงหน้า admin
         if (typeof firebase !== 'undefined' && firebase.auth) {
             firebase.auth().onAuthStateChanged(async (user) => {
+                console.log("Firebase User Loaded");
                 if (!user) {
                     if (!sessionStorage.getItem('loggingOut')) {
                         alert("⚠️ กรุณาเข้าสู่ระบบก่อนเข้าใช้งาน");
@@ -530,6 +531,23 @@
                     sessionStorage.removeItem('loggingOut');
                     window.location.replace('/login');
                 } else {
+                    console.log("Checking Admin Email");
+                    // 1. Bypass check for admin email
+                    if (user.email === 'admin@wangbarbershop.com') {
+                        console.log("Redirect Admin (Bypass)");
+                        document.getElementById('authOverlay').classList.add('opacity-0');
+                        setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
+                        console.log("Loading Finished");
+                        
+                        setupCalculator();
+                        loadData();
+                        loadShopSettings();
+                        loadEmployees();
+                        loadServices();
+                        return;
+                    }
+
+                    console.log("Loading User Document");
                     try {
                         const response = await fetch('/api/verify-role', {
                             method: 'POST',
@@ -540,19 +558,20 @@
                         const result = await response.json();
                         
                         if (!response.ok || !result.success) {
+                            console.log("Permission Denied");
                             alert("❌ ไม่พบข้อมูลสิทธิ์ผู้ใช้งาน หรือเกิดข้อผิดพลาด");
-                            window.location.href = '/';
+                            window.location.href = '/login';
                             return;
                         }
 
                         if (result.role !== 'manager') {
+                            console.log("Permission Denied: Not Manager");
                             alert("❌ คุณไม่มีสิทธิ์เข้าถึงหน้าแดชบอร์ดผู้จัดการ");
-                            window.location.href = '/';
+                            window.location.href = '/login';
                         } else {
-                            // อนุญาตให้เข้าถึง
-                            document.getElementById('authOverlay').classList.add('opacity-0');
-                            setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
-                            
+                            console.log("User Document Found");
+                            console.log("Redirect Admin");
+                            // อนุญาตให้เข้าถึง (แต่จริงๆ แล้ว Admin ควรอีเมลตรงข้างบนแล้ว นี่เผื่อไว้)
                             setupCalculator();
                             loadData();
                             loadShopSettings();
@@ -561,8 +580,13 @@
                         }
                     } catch (error) {
                         console.error("Error checking role:", error);
+                        console.log("Permission Denied (Error)");
                         alert("❌ เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์");
-                        window.location.href = '/';
+                        window.location.href = '/login';
+                    } finally {
+                        document.getElementById('authOverlay').classList.add('opacity-0');
+                        setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
+                        console.log("Loading Finished");
                     }
                 }
             });

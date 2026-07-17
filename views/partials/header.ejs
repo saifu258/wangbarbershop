@@ -109,10 +109,15 @@
                     const navActionContainer = document.getElementById('navActionContainer');
                     if (user) {
                         try {
-                            const userDoc = await db.collection('users').doc(user.uid).get();
                             let role = 'guest';
-                            if (userDoc.exists) {
-                                role = userDoc.data().role;
+                            
+                            if (user.email === 'admin@wangbarbershop.com') {
+                                role = 'manager';
+                            } else {
+                                const userDoc = await db.collection('users').doc(user.uid).get();
+                                if (userDoc.exists) {
+                                    role = userDoc.data().role;
+                                }
                             }
 
                             let buttonsHtml = '';

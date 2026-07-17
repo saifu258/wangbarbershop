@@ -133,6 +133,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         if (typeof firebase !== 'undefined' && firebase.auth) {
             firebase.auth().onAuthStateChanged(async (user) => {
+                console.log("Firebase User Loaded");
                 if (!user) {
                     if (!sessionStorage.getItem('loggingOut')) {
                         alert("⚠️ กรุณาเข้าสู่ระบบก่อนเข้าใช้งาน");
@@ -140,6 +141,24 @@
                     sessionStorage.removeItem('loggingOut');
                     window.location.replace('/login');
                 } else {
+                    console.log("Checking Admin Email");
+                    // [Bypass for Admin]
+                    if (user.email === 'admin@wangbarbershop.com') {
+                        console.log("Redirect Admin (Bypass)");
+                        const currentBarberName = 'ผู้ดูแลระบบ';
+                        const selectEl = document.getElementById('currentBarberSelect');
+                        selectEl.innerHTML = `<option value="${currentBarberName}">${currentBarberName}</option>`;
+                        selectEl.value = currentBarberName;
+                        
+                        document.getElementById('authOverlay').classList.add('opacity-0');
+                        setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
+                        console.log("Loading Finished");
+                        
+                        initializeQueueListener(currentBarberName, user.uid);
+                        return;
+                    }
+
+                    console.log("Loading User Document");
                     try {
                         const response = await fetch('/api/verify-role', {
                             method: 'POST',
@@ -150,16 +169,20 @@
                         const result = await response.json();
                         
                         if (!response.ok || !result.success) {
+                            console.log("Permission Denied");
                             alert("❌ ไม่พบข้อมูลสิทธิ์ผู้ใช้งาน หรือเกิดข้อผิดพลาด");
-                            window.location.href = '/';
+                            window.location.href = '/login';
                             return;
                         }
                         
                         const role = result.role;
                         if (role !== 'barber' && role !== 'manager') {
+                            console.log("Permission Denied: Not Barber or Manager");
                             alert("❌ คุณไม่มีสิทธิ์เข้าถึงหน้าจัดการคิวช่าง");
-                            window.location.href = '/';
+                            window.location.href = '/login';
                         } else {
+                            console.log("User Document Found");
+                            console.log("Redirect Barber");
                             // ดึงชื่อช่างจาก API result
                             const currentBarberName = result.name || 'ช่างไม่มีชื่อ';
                             
@@ -168,17 +191,18 @@
                             selectEl.innerHTML = `<option value="${currentBarberName}">${currentBarberName}</option>`;
                             selectEl.value = currentBarberName;
 
-                            // ผ่าน
-                            document.getElementById('authOverlay').classList.add('opacity-0');
-                            setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
-                            
                             // เริ่มโหลดข้อมูลคิว โดยใช้ชื่อและ UID ของช่างคนนี้เพื่อความแม่นยำ
                             initializeQueueListener(currentBarberName, user.uid);
                         }
                     } catch (err) {
                         console.error("Auth check error:", err);
+                        console.log("Permission Denied (Error)");
                         alert("❌ เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์");
-                        window.location.href = '/';
+                        window.location.href = '/login';
+                    } finally {
+                        document.getElementById('authOverlay').classList.add('opacity-0');
+                        setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
+                        console.log("Loading Finished");
                     }
                 }
             });
