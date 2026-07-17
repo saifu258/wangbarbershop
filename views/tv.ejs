@@ -98,14 +98,14 @@
 
         <!-- ฝั่งขวา: หมายเลขคิว -->
         <div class="flex flex-col justify-center items-start pl-16">
-            <div class="relative">
-                <!-- หมายเลขคิวใหญ่พิเศษและเรืองแสงแบบคมชัด (Crisp Glow) -->
-                <div id="currentQueue" class="text-[16rem] leading-none font-black text-white neon-green tracking-wider transition-all duration-300">
+            <div class="relative w-full overflow-hidden">
+                <!-- หมายเลขคิวใหญ่พิเศษและเรืองแสงแบบคมชัด (Crisp Glow) ปรับขนาดลงเพื่อไม่ให้ล้นจอ -->
+                <div id="currentQueue" class="text-[10rem] xl:text-[12rem] leading-none font-black text-white neon-green tracking-wider transition-all duration-300 truncate">
                     ---
                 </div>
             </div>
-            <div class="mt-8 bg-slate-800/80 px-10 py-5 rounded-3xl border border-slate-700 shadow-xl">
-                <p class="text-3xl text-slate-300 font-medium">ชื่อลูกค้า: <span id="currentCustomer" class="text-white font-bold text-4xl ml-4">-</span></p>
+            <div class="mt-8 bg-slate-800/80 px-10 py-5 rounded-3xl border border-slate-700 shadow-xl max-w-full">
+                <p class="text-3xl text-slate-300 font-medium truncate">ชื่อลูกค้า: <span id="currentCustomer" class="text-white font-bold text-4xl ml-4">-</span></p>
             </div>
         </div>
     </main>
@@ -164,12 +164,12 @@
         function renderCalling(booking) {
             const qElem = document.getElementById('currentQueue');
             if (booking) {
-                qElem.innerText = booking.queueId;
+                qElem.innerText = booking.queueId || 'ไม่ระบุคิว';
                 document.getElementById('currentBarber').innerText = booking.barber || 'ช่างทั่วไป';
-                document.getElementById('currentCustomer').innerText = booking.firstName || '-';
+                document.getElementById('currentCustomer').innerText = booking.firstName || 'ลูกค้าไม่ได้ระบุชื่อ';
                 
                 // ตรวจสอบ lastSpokenQueueId เพื่อไม่ให้เสียงพูดซ้ำรัวๆ หากข้อมูลเดิมถูกอัปเดต
-                if (booking.queueId !== lastSpokenQueueId) {
+                if (booking.queueId && booking.queueId !== lastSpokenQueueId) {
                     lastSpokenQueueId = booking.queueId;
                     
                     if (audioEnabled && window.speechSynthesis) {
@@ -196,7 +196,7 @@
             if (bookings && bookings.length > 0) {
                 // สร้าง HTML Text
                 const htmlText = bookings.map(b => 
-                    `<span class="text-green-400 font-bold">${b.queueId}</span> (${b.firstName})`
+                    `<span class="text-green-400 font-bold">${b.queueId || 'ไม่ระบุคิว'}</span> (${b.firstName || 'ลูกค้า'})`
                 ).join(' &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; ');
                 container.innerHTML = htmlText;
             } else {
