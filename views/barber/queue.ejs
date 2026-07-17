@@ -566,7 +566,17 @@
                         const timeB = b.updatedAt?.toDate ? b.updatedAt.toDate().getTime() : new Date(b.updatedAt || 0).getTime();
                         return timeB - timeA; // Descending (ใหม่สุดขึ้นก่อน)
                     });
-                    
+
+                    // [DEBUG UI] แสดงข้อมูล Debug บนหน้าจอเพื่อให้หาสาเหตุที่แท้จริงได้
+                    let debugEl = document.getElementById('debugQueueInfo');
+                    if (!debugEl) {
+                        debugEl = document.createElement('div');
+                        debugEl.id = 'debugQueueInfo';
+                        debugEl.className = 'bg-yellow-100 text-yellow-800 p-2 text-xs text-center border-b border-yellow-200';
+                        document.body.insertBefore(debugEl, document.body.firstChild);
+                    }
+                    debugEl.innerHTML = `[Debug] Snapshot Size: ${snapshot.size} | Pending: ${pendingBookings.length} | Serving/Calling: ${servingBookings.length} | BarberName: ${barberName} | BarberUid: ${barberUid}`;
+
                     renderTable(pendingBookings);
                     renderServingTable(servingBookings);
                 }, (error) => {
