@@ -100,9 +100,11 @@ service cloud.firestore {
     // COLLECTION: settings
     // ---------------------------------------------------------
     match /settings/{settingId} {
-      // เฉพาะ Admin อ่าน เขียน (อนุญาตไปแล้วใน Global Rule)
-      // ห้ามบุคคลอื่นเข้าถึง
-      allow read, write: if false; 
+      // อนุญาตให้ทุกคนอ่านตั้งค่าร้าน (shop) ได้เพื่อแสดงบน Header
+      allow read: if settingId == 'shop';
+      
+      // การแก้ไข หรือ document อื่นๆ ให้เฉพาะ Admin (อนุญาตไปแล้วใน Global Rule)
+      allow write: if false; 
     }
 
     // ---------------------------------------------------------

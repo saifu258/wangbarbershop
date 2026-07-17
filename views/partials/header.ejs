@@ -66,16 +66,17 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             if (typeof db !== 'undefined' && db !== null) {
-                unsubscribeHeaderSettings = db.collection('settings').doc('shop').onSnapshot((doc) => {
+                // ลบ onSnapshot ออกชั่วคราวเพื่อลด error permission denied 
+                // ถ้าร้านจะใช้ logo/shopName แบบ real-time ให้แน่ใจว่า firestore rules อัปเดตแล้ว
+                // หรือเปลี่ยนไปใช้แบบดึงครั้งเดียว (get)
+                db.collection('settings').doc('shop').get().then((doc) => {
                     if (doc.exists) {
                         const data = doc.data();
                         
-                        // Update Shop Name
                         if (data.shopName) {
                             document.getElementById('navShopName').innerText = data.shopName;
                         }
 
-                        // Update Logo
                         const logoIcon = document.getElementById('navLogoIcon');
                         const logoImg = document.getElementById('navLogoImage');
                         const logoContainer = document.getElementById('navLogoContainer');
@@ -86,21 +87,9 @@
                             logoImg.classList.remove('hidden');
                             logoContainer.classList.remove('bg-blue-600');
                             logoContainer.classList.add('bg-white');
-                        } else {
-                            logoIcon.classList.remove('hidden');
-                            logoImg.classList.add('hidden');
-                            logoContainer.classList.add('bg-blue-600');
-                            logoContainer.classList.remove('bg-white');
                         }
                     }
-                }, (error) => {
-                    console.error("Error loading header settings:", error);
-                });
-                
-                // [Memory Leak Prevention] ป้องกัน Memory leak เมื่อออกจากหน้าหรือรีเฟรช
-                window.addEventListener('beforeunload', () => {
-                    if (unsubscribeHeaderSettings) unsubscribeHeaderSettings();
-                });
+                }).catch(err => console.error("Error loading header settings:", err));
             }
             
             // Auth State Listener (Dynamic Navbar)
