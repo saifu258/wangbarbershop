@@ -173,7 +173,7 @@ router.post('/verify-role', async (req, res) => {
             }
             console.log(`[VerifyRole] Access Granted (UID matched). Role: ${userDoc.role}`);
             res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-            return res.status(200).json({ success: true, role: userDoc.role, name: userDoc.name });
+            return res.status(200).json({ success: true, role: userDoc.role, name: userDoc.name, docId: userRef.id });
         }
 
         // --- STEP 2: Check by Email (UID not found) ---
@@ -210,7 +210,7 @@ router.post('/verify-role', async (req, res) => {
 
                 console.log(`[VerifyRole] Access Granted (Email matched and UID updated). Role: ${emailUserDoc.role}`);
                 res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-                return res.status(200).json({ success: true, role: emailUserDoc.role, name: emailUserDoc.name });
+                return res.status(200).json({ success: true, role: emailUserDoc.role, name: emailUserDoc.name, docId: emailUserRef.id });
             } else {
                 console.log(`[VerifyRole] Email found but missing name or role: ${email}`);
             }

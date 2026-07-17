@@ -203,8 +203,9 @@
                             selectEl.innerHTML = `<option value="${currentBarberName}">${currentBarberName}</option>`;
                             selectEl.value = currentBarberName;
 
-                            // เริ่มโหลดข้อมูลคิว โดยใช้ชื่อและ UID ของช่างคนนี้เพื่อความแม่นยำ
-                            initializeQueueListener(currentBarberName, user.uid);
+                            // เริ่มโหลดข้อมูลคิว โดยใช้ docId จาก Firestore (barberId) ถ้ามี เพื่อให้ตรงกับข้อมูลที่จองเข้ามา
+                            const exactBarberId = result.docId || user.uid;
+                            initializeQueueListener(currentBarberName, exactBarberId);
                         }
                     } catch (err) {
                         console.error("Auth check error:", err);
