@@ -111,7 +111,7 @@
                         try {
                             let role = 'guest';
                             
-                            if (user.email === 'admin@wangbarbershop.com') {
+                            if (user.email && user.email.toLowerCase() === 'admin@wangbarbershop.com') {
                                 role = 'manager';
                             } else {
                                 const userDoc = await db.collection('users').doc(user.uid).get();

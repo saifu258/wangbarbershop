@@ -125,7 +125,7 @@ router.post('/verify-role', async (req, res) => {
         console.log(`[VerifyRole] Checking role for UID: ${uid}, Email: ${email}`);
         
         // --- Admin Rule ---
-        if (email === 'admin@wangbarbershop.com') {
+        if (email && email.toLowerCase() === 'admin@wangbarbershop.com') {
             console.log(`[VerifyRole] Admin login detected: ${email}`);
             let adminName = 'System Admin';
             

@@ -81,12 +81,13 @@
                     const user = userCredential.user;
 
                     console.log("[2] Firebase User Loaded");
-                    console.log("[3] User Email:", user.email);
+                    console.log("Current Email:", user.email);
 
                     // [Bypass for Admin]
-                    if (user.email === 'admin@wangbarbershop.com') {
-                        console.log("[4] Admin Email Match");
-                        console.log("[10] Redirect Dashboard");
+                    if (user.email && user.email.toLowerCase() === 'admin@wangbarbershop.com') {
+                        console.log("Is Admin Email");
+                        console.log("Skip Firestore Check");
+                        console.log("Redirect Admin Dashboard");
                         window.location.href = '/admin';
                         return;
                     }

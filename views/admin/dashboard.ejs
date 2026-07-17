@@ -534,16 +534,17 @@
                     console.log("[2] Firebase User Loaded");
                     console.log("[3] User Email:", user.email);
 
-                    // 1. Bypass check for admin email
-                    if (user.email === 'admin@wangbarbershop.com') {
+                    // 1. Bypass check for admin email (Case Insensitive)
+                    if (user.email && user.email.toLowerCase() === 'admin@wangbarbershop.com') {
                         console.log("[4] Admin Email Match");
+                        console.log("Skip Firestore Check");
                         
                         document.getElementById('authOverlay').classList.add('opacity-0');
                         setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
                         
                         console.log("[11] Loading False");
-                        console.log("[10] Redirect Dashboard");
-                        console.log("[12] Authentication Finished");
+                        console.log("Redirect Admin Dashboard");
+                        console.log("Authentication Complete");
                         
                         setupCalculator();
                         loadData();

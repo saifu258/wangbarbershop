@@ -142,11 +142,12 @@
                     window.location.replace('/login');
                 } else {
                     console.log("[2] Firebase User Loaded");
-                    console.log("[3] User Email:", user.email);
+                    console.log("Current Email:", user.email);
 
                     // [Bypass for Admin]
-                    if (user.email === 'admin@wangbarbershop.com') {
-                        console.log("[4] Admin Email Match");
+                    if (user.email && user.email.toLowerCase() === 'admin@wangbarbershop.com') {
+                        console.log("Is Admin Email");
+                        console.log("Skip Firestore Check");
                         
                         const currentBarberName = 'ผู้ดูแลระบบ';
                         const selectEl = document.getElementById('currentBarberSelect');
@@ -156,9 +157,9 @@
                         document.getElementById('authOverlay').classList.add('opacity-0');
                         setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
                         
-                        console.log("[11] Loading False");
-                        console.log("[10] Redirect Dashboard");
-                        console.log("[12] Authentication Finished");
+                        console.log("Loading False");
+                        console.log("Redirect Admin Dashboard");
+                        console.log("Authentication Complete");
                         
                         initializeQueueListener(currentBarberName, user.uid);
                         return;
