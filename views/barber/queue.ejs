@@ -527,10 +527,9 @@
             let query = db.collection("bookings")
                 .where("status", "in", ["pending", "calling", "serving"]);
 
-            // ถ้าไม่ใช่ Admin ให้ query เฉพาะคิวของช่างคนนี้ (ต้องมี Composite Index)
-            if (barberName !== 'ผู้ดูแลระบบ') {
-                query = query.where("barberId", "==", barberUid);
-            }
+            // ดึงคิวทั้งหมดที่ Active แล้วให้ Client กรองเฉพาะของตัวเอง (isMyQueue) 
+            // เพื่อแก้ปัญหา UID ไม่ตรงกับ Document ID โดยไม่ต้องพึ่งพา Backend ใหม่
+            // และไม่ต้องการ Composite Index ที่ซับซ้อน
 
             unsubscribePending = query.onSnapshot((snapshot) => {
                 const pendingBookings = [];
