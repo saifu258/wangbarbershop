@@ -75,21 +75,23 @@
                 submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
 
                 try {
+                    console.log("[1] Firebase Auth Started");
                     // 1. เข้าสู่ระบบด้วย Firebase Auth
                     const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
                     const user = userCredential.user;
 
-                    console.log("Firebase User Loaded");
-                    console.log("Checking Admin Email");
+                    console.log("[2] Firebase User Loaded");
+                    console.log("[3] User Email:", user.email);
 
                     // [Bypass for Admin]
                     if (user.email === 'admin@wangbarbershop.com') {
-                        console.log("Redirect Admin (Bypass)");
+                        console.log("[4] Admin Email Match");
+                        console.log("[10] Redirect Dashboard");
                         window.location.href = '/admin';
                         return;
                     }
 
-                    console.log("Loading User Document");
+                    console.log("[5] Loading Firestore User");
                     // 2. เรียกใช้ API ฝั่ง Backend เพื่อตรวจสอบและตั้งค่าสิทธิ์ (ลดปัญหาสิทธิ์ฝั่ง Frontend)
                     const response = await fetch('/api/verify-role', {
                         method: 'POST',
@@ -102,24 +104,28 @@
                     // 3. ตรวจสอบสถานะการตอบกลับ
                     if (!response.ok || !result.success) {
                         await firebase.auth().signOut();
-                        console.log("Permission Denied");
+                        console.log("[9] Permission Denied");
                         alert(result.message || 'เกิดข้อผิดพลาด: ไม่สามารถตรวจสอบสิทธิ์ได้');
                         return;
                     }
 
+                    console.log("[6] Firestore User Found");
+                    console.log("[7] User Role:", result.role);
+                    console.log("[8] User Status:", result.status || 'N/A');
+
                     // 4. ตรวจสอบ Role เพื่อพิจารณาการ Redirect
                     if (result.role === 'manager') {
-                        console.log("User Document Found");
-                        console.log("Redirect Admin");
+                        console.log("[9] Permission Granted");
+                        console.log("[10] Redirect Dashboard");
                         // หากมีสิทธิ์เป็น manager ให้นำทางไปยัง /admin
                         window.location.href = '/admin';
                     } else if (result.role === 'barber') {
-                        console.log("User Document Found");
-                        console.log("Redirect Barber");
+                        console.log("[9] Permission Granted");
+                        console.log("[10] Redirect Barber");
                         // หากมีสิทธิ์เป็นช่างตัดผม ให้นำทางไปยัง /barber
                         window.location.href = '/barber';
                     } else {
-                        console.log("Permission Denied");
+                        console.log("[9] Permission Denied");
                         // หากไม่มีสิทธิ์
                         await firebase.auth().signOut();
                         alert('ไม่มีสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแลระบบ');
@@ -128,7 +134,7 @@
 
                 } catch (error) {
                     console.error("Login Error:", error);
-                    console.log("Permission Denied (Error)");
+                    console.log("[9] Permission Denied (Error)");
                     // รหัส Error ของ Firebase สำหรับ Invalid Credential / User Not Found
                     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
                          alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแลระบบ');
@@ -137,7 +143,8 @@
                     }
                 } finally {
                     // คืนค่าปุ่ม
-                    console.log("Loading Finished");
+                    console.log("[11] Loading False");
+                    console.log("[12] Authentication Finished");
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalBtnText;
                     submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
