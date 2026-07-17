@@ -523,22 +523,26 @@
 
     function initializeQueueListener(barberName, barberUid) {
         if (typeof db !== 'undefined' && db !== null) {
-            // ไม่ล็อค .where("barber") เพื่อป้องกันปัญหาการสะกดผิดหรือ Index และมาจัดการฟิลเตอร์ด้วย JS แทน
-            unsubscribePending = db.collection("bookings")
-                .where("status", "in", ["pending", "calling", "serving"])
-                .onSnapshot((snapshot) => {
-                    const pendingBookings = [];
-                    const servingBookings = [];
-                    snapshot.forEach((doc) => {
-                        const data = doc.data();
-                        
-                        // ฟิลเตอร์คิวให้แสดงเฉพาะของช่างคนนี้:
-                        // 1. เทียบด้วย barberId (แม่นยำที่สุด - รองรับระบบจองออนไลน์ที่แนบ UID มา)
-                        // 2. เทียบด้วยชื่อแบบไม่สนใจตัวพิมพ์เล็กใหญ่ (รองรับระบบเก่าที่มีแต่ชื่อ)
-                        const isMyQueue = (data.barberId === barberUid) || 
-                                          (data.barber && data.barber.toLowerCase().trim() === barberName.toLowerCase().trim());
-                        
-                        if (!isMyQueue) return;
+            let query = db.collection("bookings")
+                .where("status", "in", ["pending", "calling", "serving"]);
+
+            // ถ้าไม่ใช่ Admin ให้ query เฉพาะคิวของช่างคนนี้ (ต้องมี Composite Index)
+            if (barberName !== 'ผู้ดูแลระบบ') {
+                query = query.where("barberId", "==", barberUid);
+            }
+
+            unsubscribePending = query.onSnapshot((snapshot) => {
+                const pendingBookings = [];
+                const servingBookings = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    
+                    // (สามารถเอา isMyQueue ออกได้เลย เพราะ Query ถูกกรองมาจาก Firestore แล้ว แต่เก็บไว้เผื่อกันพลาด)
+                    const isMyQueue = (data.barberId === barberUid) || 
+                                      (data.barber && data.barber.toLowerCase().trim() === barberName.toLowerCase().trim()) || 
+                                      (barberName === 'ผู้ดูแลระบบ');
+                    
+                    if (!isMyQueue) return;
 
                         const b = { id: doc.id, ...data };
                         

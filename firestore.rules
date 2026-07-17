@@ -58,9 +58,9 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------
-    // COLLECTION: queues
+    // COLLECTION: bookings
     // ---------------------------------------------------------
-    match /queues/{queueId} {
+    match /bookings/{bookingId} {
       // ลูกค้าสามารถสร้างคิวได้โดยไม่ต้อง Login
       allow create: if true;
       
