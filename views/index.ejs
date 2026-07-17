@@ -317,7 +317,7 @@
             try {
                 const snapshot = await db.collection('users')
                     .where('role', '==', 'barber')
-                    .where('status', '==', 'available')
+                    .where('status', '==', 'active')
                     .get();
                 
                 if (!snapshot.empty) {

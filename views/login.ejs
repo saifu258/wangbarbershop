@@ -91,7 +91,7 @@
                     // 3. ตรวจสอบสถานะการตอบกลับ
                     if (!response.ok || !result.success) {
                         await firebase.auth().signOut();
-                        alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถตรวจสอบสิทธิ์ได้'));
+                        alert(result.message || 'เกิดข้อผิดพลาด: ไม่สามารถตรวจสอบสิทธิ์ได้');
                         
                         // คืนค่าปุ่ม
                         submitBtn.disabled = false;
@@ -100,14 +100,17 @@
                         return;
                     }
 
-                    // 4. ตรวจสอบ Role
+                    // 4. ตรวจสอบ Role เพื่อพิจารณาการ Redirect
                     if (result.role === 'manager') {
                         // หากมีสิทธิ์เป็น manager ให้นำทางไปยัง /admin
                         window.location.href = '/admin';
+                    } else if (result.role === 'barber') {
+                        // หากมีสิทธิ์เป็นช่างตัดผม ให้นำทางไปยัง /barber
+                        window.location.href = '/barber';
                     } else {
                         // หากไม่มีสิทธิ์
                         await firebase.auth().signOut();
-                        alert('ไม่มีสิทธิ์เข้าถึงระบบแอดมิน');
+                        alert('ไม่มีสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแลระบบ');
                         
                         // คืนค่าปุ่ม
                         submitBtn.disabled = false;
@@ -119,42 +122,9 @@
                 } catch (error) {
                     console.error("Login Error:", error);
                     
-                    // รหัส Error ของ Firebase รุ่นใหม่ๆ มักใช้ invalid-credential หรือ user-not-found
+                    // รหัส Error ของ Firebase สำหรับ Invalid Credential / User Not Found
                     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
-                        // ถามผู้ใช้ว่าต้องการสร้างบัญชีใหม่หรือไม่
-                        const wantsToRegister = confirm('ไม่พบบัญชีนี้ในระบบ คุณต้องการสร้างเป็นบัญชีแอดมิน/พนักงานใหม่เลยหรือไม่?');
-                        
-                        if (wantsToRegister) {
-                            try {
-                                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังสร้างบัญชีใหม่...';
-                                
-                                // สร้างบัญชีใหม่ใน Firebase Auth
-                                const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
-                                const user = userCredential.user;
-                                
-                                // ส่งไป Backend เพื่อเช็ค/กำหนดสิทธิ์ (Auto-provisioning)
-                                const response = await fetch('/api/verify-role', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ uid: user.uid, email: user.email })
-                                });
-                                
-                                const result = await response.json();
-                                
-                                if (result.success && result.role === 'manager') {
-                                    alert('สร้างบัญชีแอดมินสำเร็จ! กำลังเข้าสู่ระบบ...');
-                                    window.location.href = '/admin';
-                                } else if (result.success) {
-                                    window.location.href = '/admin'; // หรือไปหน้าของพนักงาน
-                                } else {
-                                    await firebase.auth().signOut();
-                                    alert('สร้างบัญชีสำเร็จ แต่ไม่สามารถตั้งค่าสิทธิ์ได้');
-                                }
-                            } catch (regError) {
-                                console.error("Registration Error:", regError);
-                                alert('ไม่สามารถสร้างบัญชีได้: ' + regError.message);
-                            }
-                        }
+                         alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแลระบบ');
                     } else {
                         alert('Login Error: ' + error.message);
                     }

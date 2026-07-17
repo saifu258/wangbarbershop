@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ---------------------------------------------------------
+    // FUNCTIONS (ฟังก์ชันที่ใช้ตรวจสอบสิทธิ์ซ้ำๆ)
+    // ---------------------------------------------------------
+    
+    // ตรวจสอบว่าเข้าสู่ระบบหรือไม่
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // ตรวจสอบว่าเป็น Admin หรือไม่ (มีเพียงบัญชีเดียว)
+    // ใช้ request.auth.token.email เพื่อความรัดกุมสูงสุด
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'admin@wangbarbershop.com';
+    }
+    
+    // ดึงข้อมูล Document ของ User ปัจจุบันจาก Collection users
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // ตรวจสอบว่าเป็นช่างตัดผม (Barber) หรือไม่
+    function isBarber() {
+      return isSignedIn() && userDoc().role == 'barber';
+    }
+    
+    // ตรวจสอบว่าเป็นช่างตัดผมที่เปิดใช้งาน (Active) อยู่หรือไม่
+    function isActiveBarber() {
+      return isBarber() && userDoc().status == 'active';
+    }
+
+    // ---------------------------------------------------------
+    // GLOBAL ADMIN RULE
+    // ---------------------------------------------------------
+    // Admin สามารถอ่านและเขียน (read, create, update, delete) ได้ทุก Collection ทั้งหมด
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------
+    // COLLECTION: users
+    // ---------------------------------------------------------
+    match /users/{userId} {
+      // Barber อ่านเฉพาะ Document ของตัวเอง
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      
+      // ห้ามสร้างหรือลบ (ส่วนของ Admin อนุญาตไปแล้วใน Global Rule)
+      allow create, delete: if false;
+      
+      // อนุญาต update ได้เฉพาะ displayName, phone, photoURL เท่านั้น
+      // ห้ามแก้ไข uid, email, role, status, createdAt อย่างเด็ดขาด
+      allow update: if isSignedIn() 
+                    && request.auth.uid == userId 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'phone', 'photoURL']);
+    }
+
+    // ---------------------------------------------------------
+    // COLLECTION: queues
+    // ---------------------------------------------------------
+    match /queues/{queueId} {
+      // ลูกค้าสามารถสร้างคิวได้โดยไม่ต้อง Login
+      allow create: if true;
+      
+      // ทุกคนอ่านคิวได้
+      allow read: if true;
+      
+      // Barber Active สามารถอัปเดตได้
+      allow update: if isActiveBarber();
+      
+      // Admin สามารถลบได้ (อนุญาตไปแล้วใน Global Rule)
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------
+    // COLLECTION: appointments
+    // ---------------------------------------------------------
+    match /appointments/{appointmentId} {
+      // Barber Active อ่าน สร้าง แก้ไขได้
+      allow read, create, update: if isActiveBarber();
+      
+      // Admin ลบได้ (อนุญาตไปแล้วใน Global Rule)
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------
+    // COLLECTION: services
+    // ---------------------------------------------------------
+    match /services/{serviceId} {
+      // อ่านได้ทุกคนแม้ไม่ได้ Login
+      allow read: if true;
+      
+      // เฉพาะ Admin เพิ่ม แก้ไข ลบ (อนุญาตไปแล้วใน Global Rule)
+      allow create, update, delete: if false;
+    }
+
+    // ---------------------------------------------------------
+    // COLLECTION: settings
+    // ---------------------------------------------------------
+    match /settings/{settingId} {
+      // เฉพาะ Admin อ่าน เขียน (อนุญาตไปแล้วใน Global Rule)
+      // ห้ามบุคคลอื่นเข้าถึง
+      allow read, write: if false; 
+    }
+
+    // ---------------------------------------------------------
+    // COLLECTION: reports
+    // ---------------------------------------------------------
+    match /reports/{reportId} {
+      // เฉพาะ Admin อ่าน เขียน (อนุญาตไปแล้วใน Global Rule)
+      // ห้ามบุคคลอื่นเข้าถึง
+      allow read, write: if false; 
+    }
+  }
+}

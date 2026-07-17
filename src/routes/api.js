@@ -124,44 +124,106 @@ router.post('/verify-role', async (req, res) => {
 
         console.log(`[VerifyRole] Checking role for UID: ${uid}, Email: ${email}`);
         
-        const userRef = db.collection('users').doc(uid);
-        const userDoc = await userRef.get();
-
-        if (!userDoc.exists) {
-            // อนุญาตให้เฉพาะ admin@wangbarbershop.com สมัครและรับสิทธิ์แอดมินอัตโนมัติ
-            if (email === 'admin@wangbarbershop.com') {
-                console.log(`[VerifyRole] Admin user not found. Auto-provisioning manager role for ${email}...`);
-                const newUserData = {
-                    email: email,
-                    name: 'System Admin',
-                    role: 'manager',
-                    createdAt: FieldValue.serverTimestamp()
-                };
-                await userRef.set(newUserData);
-                console.log(`[VerifyRole] Auto-provisioning completed for ${email}`);
-                
-                return res.status(200).json({ success: true, role: 'manager', isNewUser: true });
+        // --- Admin Rule ---
+        if (email === 'admin@wangbarbershop.com') {
+            console.log(`[VerifyRole] Admin login detected: ${email}`);
+            let adminName = 'System Admin';
+            
+            // Check if admin is in DB
+            let adminQuery = await db.collection('users').where('email', '==', email).limit(1).get();
+            if (adminQuery.empty) {
+                // Fallback check by doc id 'init_admin' or just email as doc id
+                const fallbackDoc = await db.collection('users').doc(email).get();
+                if (fallbackDoc.exists) adminName = fallbackDoc.data().name || adminName;
+                else {
+                    const fallbackDoc2 = await db.collection('users').doc('init_admin').get();
+                    if (fallbackDoc2.exists) adminName = fallbackDoc2.data().name || adminName;
+                }
             } else {
-                // หากเป็นอีเมลอื่นที่แอดมินไม่ได้สร้างข้อมูลไว้ให้ล่วงหน้า ให้ปฏิเสธการเข้าถึง
-                console.warn(`[VerifyRole] Unauthorized access attempt by ${email}`);
-                return res.status(403).json({ 
-                    success: false, 
-                    message: "คุณไม่มีสิทธิ์เข้าใช้งานระบบ (Unauthorized). กรุณาติดต่อแอดมินเพื่อเพิ่มข้อมูลพนักงานให้คุณก่อนเข้าใช้งาน" 
-                });
+                adminName = adminQuery.docs[0].data().name || adminName;
+            }
+
+            res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            return res.status(200).json({ success: true, role: 'manager', name: adminName });
+        }
+
+        // --- STEP 1: Check by UID ---
+        console.log(`[VerifyRole] STEP 1: Checking user by UID: ${uid}`);
+        let userDoc = null;
+        let userRef = null;
+        
+        // 1.1 Check uid field
+        const uidQuery = await db.collection('users').where('uid', '==', uid).limit(1).get();
+        if (!uidQuery.empty) {
+            userDoc = uidQuery.docs[0].data();
+            userRef = uidQuery.docs[0].ref;
+        } else {
+            // 1.2 Compatibility: Check if document ID is uid
+            const docById = await db.collection('users').doc(uid).get();
+            if (docById.exists) {
+                userDoc = docById.data();
+                userRef = docById.ref;
             }
         }
 
-        const role = userDoc.data().role;
-        const name = userDoc.data().name;
-        console.log(`[VerifyRole] User found. Role is: ${role}`);
+        if (userDoc) {
+            if (userDoc.status === 'inactive') {
+                console.warn(`[VerifyRole] User is inactive: ${email}`);
+                return res.status(403).json({ success: false, message: "บัญชีของคุณถูกปิดการใช้งาน กรุณาติดต่อผู้ดูแลระบบ" });
+            }
+            console.log(`[VerifyRole] Access Granted (UID matched). Role: ${userDoc.role}`);
+            res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            return res.status(200).json({ success: true, role: userDoc.role, name: userDoc.name });
+        }
+
+        // --- STEP 2: Check by Email (UID not found) ---
+        console.log(`[VerifyRole] STEP 2: UID not found. Checking by Email: ${email}`);
+        let emailUserDoc = null;
+        let emailUserRef = null;
         
-        // แนะนำการตั้งค่าปิด Cache กรณีปัญหาบน Render
-        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-        
-        return res.status(200).json({ success: true, role: role, name: name });
+        const emailQuery = await db.collection('users').where('email', '==', email).limit(1).get();
+        if (!emailQuery.empty) {
+            emailUserDoc = emailQuery.docs[0].data();
+            emailUserRef = emailQuery.docs[0].ref;
+        } else {
+            // Compatibility: Check if document ID is email
+            const docByEmail = await db.collection('users').doc(email).get();
+            if (docByEmail.exists) {
+                emailUserDoc = docByEmail.data();
+                emailUserRef = docByEmail.ref;
+            }
+        }
+
+        if (emailUserDoc) {
+            // Validate Name and Role exist as per requirements
+            if (emailUserDoc.name && emailUserDoc.role) {
+                if (emailUserDoc.status === 'inactive') {
+                    console.warn(`[VerifyRole] User is inactive: ${email}`);
+                    return res.status(403).json({ success: false, message: "บัญชีของคุณถูกปิดการใช้งาน กรุณาติดต่อผู้ดูแลระบบ" });
+                }
+
+                console.log(`[VerifyRole] Match found by Email. Updating UID for: ${email}`);
+                await emailUserRef.update({
+                    uid: uid,
+                    updatedAt: FieldValue.serverTimestamp()
+                });
+
+                console.log(`[VerifyRole] Access Granted (Email matched and UID updated). Role: ${emailUserDoc.role}`);
+                res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+                return res.status(200).json({ success: true, role: emailUserDoc.role, name: emailUserDoc.name });
+            } else {
+                console.log(`[VerifyRole] Email found but missing name or role: ${email}`);
+            }
+        }
+
+        // --- 4. No Match Found ---
+        console.warn(`[VerifyRole] Access Denied: ${email}`);
+        return res.status(403).json({ 
+            success: false, 
+            message: "ไม่มีสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแลระบบ" 
+        });
 
     } catch (error) {
-        // ดึง uid มาแสดงใน Log หากมี เพื่อให้ง่ายต่อการ Debug
         const errorUid = (req && req.body && req.body.uid) ? req.body.uid : 'Unknown UID';
         console.error(`[VerifyRole] Error verifying role for UID: ${errorUid} -`, error);
         res.status(500).json({ success: false, message: "Internal server error: " + error.message });
@@ -188,43 +250,49 @@ router.post('/staff', async (req, res) => {
                 password: password,
                 displayName: name,
             });
-            console.log(`[AddStaff] User created in Auth successfully: ${userRecord.uid}`);
+            console.log(`[AddStaff] User created in Auth successfully.`);
         } catch (authError) {
             if (authError.code === 'auth/email-already-exists') {
-                console.log(`[AddStaff] Email already exists in Auth. Switching to repair/sync mode for: ${email}`);
+                console.log(`[AddStaff] Email already exists in Auth. Updating password and sync mode for: ${email}`);
                 userRecord = await auth.getUserByEmail(email);
+                await auth.updateUser(userRecord.uid, { password: password, displayName: name });
                 isRepairMode = true;
             } else {
                 console.error(`[AddStaff] Auth Error:`, authError);
-                throw authError; // Rethrow if it's not the email-already-exists error
+                throw authError;
             }
         }
 
         // เขียนลง Firestore
         try {
             console.log(`[AddStaff] Writing data to Firestore for UID: ${userRecord.uid}`);
-            await db.collection('users').doc(userRecord.uid).set({
+            const userData = {
                 name: name,
                 email: email,
                 role: role,
-                status: 'available',
-                createdAt: FieldValue.serverTimestamp()
-            }, { merge: true }); // ใช้ merge เพื่อไม่เขียนทับ createdAt เดิมกรณีซ่อมแซมข้อมูล
+                status: 'active',
+                updatedAt: FieldValue.serverTimestamp()
+            };
+            
+            if (!isRepairMode) {
+                userData.uid = userRecord.uid; 
+                userData.createdAt = FieldValue.serverTimestamp();
+            }
+
+            // Using UID as document ID to match Firestore Rules /users/{uid}
+            await db.collection('users').doc(userRecord.uid).set(userData, { merge: true });
             
             console.log(`[AddStaff] Firestore write completed successfully.`);
             return res.status(200).json({ 
                 success: true, 
-                message: isRepairMode ? 'ข้อมูลพนักงานถูกซิงค์เรียบร้อยแล้ว' : 'สร้างพนักงานใหม่สำเร็จ',
-                uid: userRecord.uid
+                message: isRepairMode ? 'ข้อมูลพนักงานถูกซิงค์และอัปเดตรหัสผ่านเรียบร้อยแล้ว' : 'สร้างพนักงานใหม่สำเร็จ'
             });
 
         } catch (firestoreError) {
             console.error(`[AddStaff] Firestore Write Error:`, firestoreError);
-            // หากเป็นการสร้างใหม่ (ไม่ใช่ซ่อมแซม) และเขียน Firestore พัง ให้ลบ User ใน Auth ทิ้งเพื่อป้องกัน Data Inconsistency
-            if (!isRepairMode) {
+            if (!isRepairMode && userRecord) {
                 console.log(`[AddStaff] Rolling back (Deleting User from Auth) UID: ${userRecord.uid}`);
                 await auth.deleteUser(userRecord.uid);
-                console.log(`[AddStaff] Rollback completed.`);
             }
             throw firestoreError;
         }

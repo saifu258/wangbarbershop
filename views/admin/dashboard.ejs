@@ -1074,20 +1074,20 @@
                 let html = '';
                 snapshot.forEach(doc => {
                     const emp = { email: doc.id, ...doc.data() };
-                    const isAvailable = emp.status === 'available';
+                    const isActive = emp.status === 'active';
                     
                     html += `
                         <tr class="hover:bg-blue-50/50 transition-colors group">
                             <td class="p-4 font-bold text-gray-800">${emp.name || '-'}</td>
                             <td class="p-4 text-gray-500 text-sm hidden sm:table-cell">${emp.email}</td>
                             <td class="p-4 text-center">
-                                <span class="px-3 py-1 rounded-full text-xs font-bold ${isAvailable ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}">
-                                    ${isAvailable ? '<i class="fa-solid fa-circle-check"></i> ว่างรับคิว' : '<i class="fa-solid fa-circle-xmark"></i> ติดธุระ'}
+                                <span class="px-3 py-1 rounded-full text-xs font-bold ${isActive ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}">
+                                    ${isActive ? '<i class="fa-solid fa-circle-check"></i> เปิดใช้งาน' : '<i class="fa-solid fa-circle-xmark"></i> ปิดใช้งาน'}
                                 </span>
                             </td>
                             <td class="p-4 text-center flex justify-center gap-2">
-                                <button onclick="toggleEmployeeStatus('${emp.email}', '${emp.status}')" class="${isAvailable ? 'bg-red-50 text-red-600 hover:bg-red-100 border-red-200' : 'bg-green-50 text-green-600 hover:bg-green-100 border-green-200'} px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors shadow-sm" title="${isAvailable ? 'เปลี่ยนสถานะเป็น ไม่ว่าง' : 'เปลี่ยนสถานะเป็น ว่าง'}">
-                                    <i class="fa-solid fa-toggle-${isAvailable ? 'off' : 'on'}"></i>
+                                <button onclick="toggleEmployeeStatus('${emp.email}', '${emp.status}')" class="${isActive ? 'bg-red-50 text-red-600 hover:bg-red-100 border-red-200' : 'bg-green-50 text-green-600 hover:bg-green-100 border-green-200'} px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors shadow-sm" title="${isActive ? 'เปลี่ยนสถานะเป็น ปิดใช้งาน' : 'เปลี่ยนสถานะเป็น เปิดใช้งาน'}">
+                                    <i class="fa-solid fa-toggle-${isActive ? 'off' : 'on'}"></i>
                                 </button>
                                 <button onclick="deleteEmployee('${emp.email}')" class="bg-white text-gray-400 hover:bg-red-50 hover:text-red-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-gray-200 hover:border-red-200 transition-colors shadow-sm" title="ลบข้อมูลพนักงาน">
                                     <i class="fa-solid fa-trash-can"></i>
@@ -1214,7 +1214,7 @@
     async function toggleEmployeeStatus(email, currentStatus) {
         if (!confirm(`ยืนยันการเปลี่ยนสถานะของ ${email} หรือไม่?`)) return;
         try {
-            const newStatus = currentStatus === 'available' ? 'busy' : 'available';
+            const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
             await db.collection('users').doc(email).update({ status: newStatus });
         } catch (error) {
             console.error("Error updating status:", error);

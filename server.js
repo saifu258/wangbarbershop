@@ -105,10 +105,10 @@ app.get('/api/barbers', async (req, res) => {
     try {
         if (!db) return res.status(500).json({ success: false, message: "Database not initialized" });
         
-        // Query Firestore: ดึงเฉพาะผู้ใช้ที่ role เป็น 'barber' และ status เป็น 'available' ตามที่ร้องขอ
+        // Query Firestore: ดึงเฉพาะผู้ใช้ที่ role เป็น 'barber' และ status เป็น 'active' ตามที่ร้องขอ
         const snapshot = await db.collection('users')
             .where('role', '==', 'barber')
-            .where('status', '==', 'available')
+            .where('status', '==', 'active')
             .get();
             
         const barbers = [];
