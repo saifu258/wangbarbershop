@@ -1,13 +1,13 @@
 // กรุณานำ config นี้มาจาก Firebase Console -> Project Settings -> General -> Your apps
 // สังเกตที่หัวข้อ SDK setup and configuration เลือก Config
 const firebaseConfig = {
-    apiKey: "AIzaSyD7YDuFXz0PHBGQRhaNUPg21fiznbC9vIE",
-    authDomain: "wangbarber1.firebaseapp.com",
-    projectId: "wangbarber1",
-    storageBucket: "wangbarber1.firebasestorage.app",
-    messagingSenderId: "81979309296",
-    appId: "1:81979309296:web:0d1ea171924a52fe469635",
-    measurementId: "G-XBHCS0GY2Z"
+    apiKey: "AIzaSyD4i6UoaAIQFzwiFiyc6zmC_Rqo0joE3rQ",
+    authDomain: "wangbarbershop-a7116.firebaseapp.com",
+    projectId: "wangbarbershop-a7116",
+    storageBucket: "wangbarbershop-a7116.firebasestorage.app",
+    messagingSenderId: "416966478189",
+    appId: "1:416966478189:web:c51537a8257afd5d34f264",
+    measurementId: "G-FS39MW1VXE"
 };
 
 // ประกาศตัวแปร global สำหรับเรียกใช้ Firebase Services
