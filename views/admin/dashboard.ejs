@@ -1851,7 +1851,7 @@
         let apiSuccess = false;
         
         try {
-            const res = await fetch('/api/services?all=true');
+            const res = await fetch('/api/services');
             if (res.ok) {
                 const result = await res.json();
                 if (result.success) {
@@ -1862,20 +1862,21 @@
                     } else {
                         result.data.forEach(svc => {
                             const isActive = svc.status !== 'unavailable';
+                            if (!isActive) return;
                             html += `
                                 <tr class="hover:bg-gray-50 transition-colors">
-                                    <td class="p-4 font-semibold text-gray-800 ${!isActive ? 'line-through text-gray-400' : ''}">${svc.name}</td>
-                                    <td class="p-4 text-right font-bold text-blue-700 ${!isActive ? 'text-gray-400' : ''}">${Number(svc.price).toLocaleString()}</td>
+                                    <td class="p-4 font-semibold text-gray-800">${svc.name}</td>
+                                    <td class="p-4 text-right font-bold text-blue-700">${Number(svc.price).toLocaleString()}</td>
                                     <td class="p-4 text-center">
-                                        <span class="px-3 py-1 rounded-full text-xs font-bold ${isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
-                                            ${isActive ? 'เปิดให้บริการ' : 'ปิดใช้งาน'}
+                                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                                            เปิดให้บริการ
                                         </span>
                                     </td>
                                     <td class="p-4 text-center space-x-2">
                                         <button onclick="editService('${svc.id}', '${svc.name}', ${svc.price}, '${svc.status}')" class="text-indigo-600 hover:text-indigo-800 px-2 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors text-sm" title="แก้ไข">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </button>
-                                        <button onclick="deleteService('${svc.id}')" class="text-red-600 hover:text-red-800 px-2 py-1 bg-red-50 hover:bg-red-100 rounded-lg transition-colors text-sm" title="ปิดใช้งาน/ลบ">
+                                        <button onclick="deleteService('${svc.id}')" class="text-red-600 hover:text-red-800 px-2 py-1 bg-red-50 hover:bg-red-100 rounded-lg transition-colors text-sm" title="ลบบริการ">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
                                     </td>
@@ -1894,28 +1895,27 @@
             console.log("Fallback to Client-Side Firebase for loadServices...");
             try {
                 // ดึงข้อมูลบริการจาก Firestore Client SDK
-                db.collection('services').onSnapshot(snapshot => {
+                db.collection('services').where('status', '==', 'available').onSnapshot(snapshot => {
                     let html = '';
                     if (snapshot.empty) {
                         html = '<tr><td colspan="4" class="p-8 text-center text-gray-500">ไม่มีบริการในระบบ</td></tr>';
                     } else {
                         snapshot.forEach(doc => {
                             const svc = doc.data();
-                            const isActive = svc.status !== 'unavailable';
                             html += `
                                 <tr class="hover:bg-gray-50 transition-colors">
-                                    <td class="p-4 font-semibold text-gray-800 ${!isActive ? 'line-through text-gray-400' : ''}">${svc.name}</td>
-                                    <td class="p-4 text-right font-bold text-blue-700 ${!isActive ? 'text-gray-400' : ''}">${Number(svc.price).toLocaleString()}</td>
+                                    <td class="p-4 font-semibold text-gray-800">${svc.name}</td>
+                                    <td class="p-4 text-right font-bold text-blue-700">${Number(svc.price).toLocaleString()}</td>
                                     <td class="p-4 text-center">
-                                        <span class="px-3 py-1 rounded-full text-xs font-bold ${isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
-                                            ${isActive ? 'เปิดให้บริการ' : 'ปิดใช้งาน'}
+                                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                                            เปิดให้บริการ
                                         </span>
                                     </td>
                                     <td class="p-4 text-center space-x-2">
                                         <button onclick="editService('${doc.id}', '${svc.name}', ${svc.price}, '${svc.status}')" class="text-indigo-600 hover:text-indigo-800 px-2 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors text-sm" title="แก้ไข">
                                             <i class="fa-solid fa-pen-to-square"></i>
                                         </button>
-                                        <button onclick="deleteService('${doc.id}')" class="text-red-600 hover:text-red-800 px-2 py-1 bg-red-50 hover:bg-red-100 rounded-lg transition-colors text-sm" title="ปิดใช้งาน/ลบ">
+                                        <button onclick="deleteService('${doc.id}')" class="text-red-600 hover:text-red-800 px-2 py-1 bg-red-50 hover:bg-red-100 rounded-lg transition-colors text-sm" title="ลบบริการ">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
                                     </td>
@@ -2077,6 +2077,7 @@
                     throw new Error("Update failed");
                 }
             }
+            loadServices(); // อัปเดตตารางแสดงผลทันที
             if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลสำเร็จ', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
         } catch (error) {
             console.error("Update service error:", error);
@@ -2089,17 +2090,17 @@
         if (typeof Swal !== 'undefined') {
             const result = await Swal.fire({
                 title: 'ยืนยันการลบ?',
-                text: "ต้องการปิดการใช้งานบริการนี้ใช่หรือไม่? (สถานะจะถูกเปลี่ยนเป็น Unavailable)",
+                text: "ต้องการลบบริการนี้ใช่หรือไม่? (ข้อมูลจะถูกลบออกจากระบบอย่างถาวร)",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
                 cancelButtonColor: '#6b7280',
-                confirmButtonText: 'ใช่, ปิดการใช้งาน',
+                confirmButtonText: 'ใช่, ลบบริการ',
                 cancelButtonText: 'ยกเลิก'
             });
             isConfirm = result.isConfirmed;
         } else {
-            isConfirm = confirm("ต้องการปิดการใช้งานบริการนี้ใช่หรือไม่?");
+            isConfirm = confirm("ต้องการลบบริการนี้ใช่หรือไม่?");
         }
 
         if (isConfirm) {
@@ -2107,15 +2108,16 @@
                 const res = await fetch(`/api/services/${id}`, { method: 'DELETE' });
                 if (!res.ok) {
                     if (typeof db !== 'undefined' && db !== null) {
-                        await db.collection('services').doc(id).update({ status: 'unavailable' });
+                        await db.collection('services').doc(id).delete();
                     } else {
                         throw new Error("Delete failed");
                     }
                 }
-                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'ปิดใช้งานสำเร็จ', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                loadServices(); // อัปเดตตารางแสดงผลทันที
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'ลบบริการสำเร็จ', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
             } catch (error) {
                 console.error("Delete service error:", error);
-                alert("❌ ปิดการใช้งานไม่สำเร็จ");
+                alert("❌ ลบบริการไม่สำเร็จ");
             }
         }
     }

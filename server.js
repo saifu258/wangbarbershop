@@ -193,8 +193,8 @@ app.put('/api/services/:id', async (req, res) => {
 app.delete('/api/services/:id', async (req, res) => {
     try {
         if (!db) return res.status(500).json({ success: false, message: "Database not initialized" });
-        // Soft delete (เปลี่ยน status เป็น unavailable)
-        await db.collection('services').doc(req.params.id).update({ status: 'unavailable' });
+        // Hard delete (ลบออกจากฐานข้อมูลทันที)
+        await db.collection('services').doc(req.params.id).delete();
         res.status(200).json({ success: true });
     } catch (error) {
         console.error("Delete Service Error:", error);
