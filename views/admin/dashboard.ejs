@@ -507,6 +507,54 @@
     </div>
 </div>
 
+<!-- Edit Booking Modal Overlay -->
+<div id="editBookingModalOverlay" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm no-print transition-opacity duration-300">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800"><i class="fa-solid fa-pen-to-square text-blue-600 mr-2"></i> แก้ไขข้อมูลการจองคิว</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-red-500 transition-colors">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Form Content -->
+        <form id="editBookingForm" onsubmit="saveEditedBooking(event)" class="p-6 space-y-4 flex-grow overflow-y-auto bg-white">
+            <input type="hidden" id="editBookingId">
+            
+            <div class="space-y-1">
+                <label for="editCustomerName" class="block text-sm font-semibold text-gray-700">ชื่อลูกค้า <span class="text-red-500">*</span></label>
+                <input type="text" id="editCustomerName" required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-800">
+            </div>
+
+            <div class="space-y-1">
+                <label for="editServiceName" class="block text-sm font-semibold text-gray-700">บริการ <span class="text-red-500">*</span></label>
+                <input type="text" id="editServiceName" required class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-800">
+            </div>
+
+            <div class="space-y-1">
+                <label for="editServicePrice" class="block text-sm font-semibold text-gray-700">ราคา (บาท) <span class="text-red-500">*</span></label>
+                <input type="number" id="editServicePrice" required min="1" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-800">
+            </div>
+
+            <div id="editQueueContainer" class="space-y-1 hidden">
+                <label for="editQueueId" class="block text-sm font-semibold text-gray-700">หมายเลขคิว</label>
+                <input type="text" id="editQueueId" class="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-800">
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="pt-4 flex gap-3 border-t border-gray-100 mt-6">
+                <button type="button" onclick="closeEditModal()" class="flex-1 bg-white hover:bg-gray-100 text-gray-700 font-bold py-2.5 rounded-xl text-sm transition-colors border border-gray-300 text-center">
+                    ยกเลิก
+                </button>
+                <button type="submit" id="saveEditBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2.5 rounded-xl text-sm transition-all text-center shadow-sm flex justify-center items-center gap-2">
+                    บันทึก
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     let allCompletedBookings = [];
     let filteredBookings = [];
@@ -790,20 +838,29 @@
                 const price = Number(b.servicePrice) || 0;
                 grossRevenue += price;
                 
+                // Safe customer name and queue fallbacks
+                const customerName = b.customerName || b.customer || b.name || b.clientName || b.bookingName || (b.firstName ? (`${b.firstName} ${b.lastName || ''}`).trim() : null) || '-';
+                const queueNo = b.queueId || b.queueNumber || '-';
+                
                 html += `
                     <tr class="hover:bg-blue-50/50 transition-colors group">
                         <td class="p-4 text-center font-bold text-gray-800">
-                            <span class="inline-block bg-white text-gray-700 px-3 py-1 rounded-lg border border-gray-200 shadow-sm text-sm">${b.queueId || '-'}</span>
+                            <span class="inline-block bg-white text-gray-700 px-3 py-1 rounded-lg border border-gray-200 shadow-sm text-sm">${queueNo}</span>
                         </td>
-                        <td class="p-4 font-semibold text-gray-700">${b.firstName} ${b.lastName || ''}</td>
+                        <td class="p-4 font-semibold text-gray-700">${customerName}</td>
                         <td class="p-4 text-gray-500 text-sm hidden md:table-cell">
-                            <span class="bg-gray-100 px-2 py-1 rounded-md border border-gray-200">${b.serviceName}</span>
+                            <span class="bg-gray-100 px-2 py-1 rounded-md border border-gray-200">${b.serviceName || '-'}</span>
                         </td>
                         <td class="p-4 text-right font-bold text-blue-700">${price.toLocaleString()} ฿</td>
                         <td class="p-4 text-center">
-                            <button onclick="openReceipt('${b.id}')" class="bg-white hover:bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-blue-200 shadow-sm hover:shadow transition-all flex items-center gap-1.5 mx-auto">
-                                <i class="fa-solid fa-receipt"></i> <span class="hidden sm:inline">ใบเสร็จ</span>
-                            </button>
+                            <div class="flex justify-center gap-2">
+                                <button onclick="openEditModal('${b.id}')" class="bg-white hover:bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-blue-200 shadow-sm hover:shadow transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-pen-to-square"></i> <span class="hidden sm:inline">แก้ไข</span>
+                                </button>
+                                <button onclick="openReceipt('${b.id}')" class="bg-white hover:bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-blue-200 shadow-sm hover:shadow transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-receipt"></i> <span class="hidden sm:inline">ใบเสร็จ</span>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -824,6 +881,133 @@
         
         document.getElementById('barberShare').innerText = Math.floor(barberShare).toLocaleString() + ' ฿';
         document.getElementById('shopShare').innerText = Math.floor(shopShare).toLocaleString() + ' ฿';
+    }
+
+    // 3.5 ระบบแก้ไขข้อมูลการจองคิว (Edit Booking)
+    let currentEditBooking = null;
+
+    function openEditModal(id) {
+        currentEditBooking = filteredBookings.find(b => b.id === id);
+        if (!currentEditBooking) return;
+        
+        const b = currentEditBooking;
+        document.getElementById('editBookingId').value = b.id;
+        
+        // Safe customer name loading
+        const customerName = b.customerName || b.customer || b.name || b.clientName || b.bookingName || (b.firstName ? (`${b.firstName} ${b.lastName || ''}`).trim() : '') || '';
+        document.getElementById('editCustomerName').value = customerName;
+        
+        document.getElementById('editServiceName').value = b.serviceName || '';
+        document.getElementById('editServicePrice').value = b.servicePrice || '';
+        
+        const queueVal = b.queueId || b.queueNumber || '';
+        if (queueVal) {
+            document.getElementById('editQueueId').value = queueVal;
+            document.getElementById('editQueueContainer').classList.remove('hidden');
+        } else {
+            document.getElementById('editQueueId').value = '';
+            document.getElementById('editQueueContainer').classList.add('hidden');
+        }
+        
+        document.getElementById('editBookingModalOverlay').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editBookingModalOverlay').classList.add('hidden');
+        currentEditBooking = null;
+    }
+
+    async function saveEditedBooking(e) {
+        e.preventDefault();
+        
+        const id = document.getElementById('editBookingId').value;
+        const customerName = document.getElementById('editCustomerName').value.trim();
+        const serviceName = document.getElementById('editServiceName').value.trim();
+        const servicePriceRaw = document.getElementById('editServicePrice').value;
+        const queueIdVal = document.getElementById('editQueueId').value.trim();
+        
+        if (!customerName) {
+            alert("กรุณากรอกชื่อลูกค้า");
+            return;
+        }
+        if (!serviceName) {
+            alert("กรุณาเลือกบริการ");
+            return;
+        }
+        
+        const servicePrice = Number(servicePriceRaw);
+        if (isNaN(servicePrice) || servicePrice <= 0) {
+            alert("กรุณากรอกราคาให้ถูกต้อง");
+            return;
+        }
+        
+        const saveBtn = document.getElementById('saveEditBtn');
+        const originalBtnHtml = saveBtn.innerHTML;
+        
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+        
+        try {
+            const nameParts = customerName.split(/\s+/);
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+            
+            const updateData = {
+                firstName: firstName,
+                lastName: lastName,
+                serviceName: serviceName,
+                servicePrice: servicePrice,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            // Apply queue number update if it existed in the document
+            if (currentEditBooking) {
+                if (currentEditBooking.queueId !== undefined) {
+                    updateData.queueId = queueIdVal;
+                }
+                if (currentEditBooking.queueNumber !== undefined) {
+                    updateData.queueNumber = queueIdVal;
+                }
+            }
+            
+            if (typeof db !== 'undefined' && db && id !== 'm1' && id !== 'm2' && id !== 'm3' && id !== 'm4') {
+                // Real DB save
+                await db.collection("bookings").doc(id).update(updateData);
+                
+                // Update local model array directly
+                const localIdx = allCompletedBookings.findIndex(b => b.id === id);
+                if (localIdx !== -1) {
+                    allCompletedBookings[localIdx] = {
+                        ...allCompletedBookings[localIdx],
+                        ...updateData
+                    };
+                }
+            } else {
+                // Mock Mode save
+                const localIdx = allCompletedBookings.findIndex(b => b.id === id);
+                if (localIdx !== -1) {
+                    allCompletedBookings[localIdx] = {
+                        ...allCompletedBookings[localIdx],
+                        ...updateData,
+                        completedAt: allCompletedBookings[localIdx].completedAt || new Date()
+                    };
+                }
+                console.log("Mock Mode: Saved successfully", updateData);
+            }
+            
+            alert("บันทึกข้อมูลเรียบร้อยแล้ว");
+            closeEditModal();
+            
+            // Refresh table
+            applyFilters();
+            
+        } catch (error) {
+            console.error("Save Edit Error:", error);
+            alert("ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง");
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalBtnHtml;
+        }
     }
 
     // 4. ระบบใบเสร็จรับเงิน (Receipt)
