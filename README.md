@@ -26,14 +26,7 @@ Firebase Authentication: ระบบล็อกอินพนักงาน
 
 📂 2. โครงสร้างไฟล์และโฟลเดอร์สำหรับ Node.js (Directory Structure)
 
-wangbarber_node/
-│
-├── .env                        # เก็บตัวแปรความลับ เช่น LINE_ACCESS_TOKEN, FIREBASE_API_KEY (ไม่เอาขึ้น Github)
-├── package.json                # เก็บรายชื่อไลบรารีที่ต้องใช้ (express, ejs, axios, firebase-admin)
-├── server.js                   # ไฟล์หลักสำหรับรันเซิร์ฟเวอร์ Node.js (ตั้งค่า Express, Routes พื้นฐาน)
-│
-├── routes/                     # โฟลเดอร์แยกการจัดการเส้นทาง (Routing)
-│   ├── api.js                  # รับคำสั่งจากหน้าเว็บเพื่อยิง LINE Notify
+wangbarber_node/.js                  # รับคำสั่งจากหน้าเว็บเพื่อยิง LINE Notify
 │   ├── index.js                # จัดการหน้า Public (หน้าจองคิว, หน้าจอทีวี, หน้าล็อกอิน)
 │   ├── barber.js               # จัดการหน้าของช่าง (ป้องกันด้วย Middleware)
 │   └── admin.js                # จัดการหน้าของผู้จัดการ (ป้องกันด้วย Middleware)
@@ -70,6 +63,13 @@ wangbarber_node/
 
 📲 การแจ้งเตือน LINE (จองคิวสำเร็จ):
 
+│
+├── .env                        # เก็บตัวแปรความลับ เช่น LINE_ACCESS_TOKEN, FIREBASE_API_KEY (ไม่เอาขึ้น Github)
+├── package.json                # เก็บรายชื่อไลบรารีที่ต้องใช้ (express, ejs, axios, firebase-admin)
+├── server.js                   # ไฟล์หลักสำหรับรันเซิร์ฟเวอร์ Node.js (ตั้งค่า Express, Routes พื้นฐาน)
+│
+├── routes/                     # โฟลเดอร์แยกการจัดการเส้นทาง (Routing)
+│   ├── api
 ทันทีที่ข้อมูลลง Firestore สำเร็จ หน้าเว็บจะยิง HTTP POST ไปที่ Backend ของตัวเอง (/api/notify/booking)
 
 Node.js จะรับเรื่องและใช้ไลบรารี axios ยิง LINE Messaging API พร้อม Flex Message สวยงามไปยังลูกค้า เพื่อแจ้งหมายเลขคิว

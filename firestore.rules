@@ -45,7 +45,7 @@ service cloud.firestore {
     // ---------------------------------------------------------
     match /users/{userId} {
       // Barber อ่านเฉพาะ Document ของตัวเอง
-      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow read: if isSignedIn() && (request.auth.uid == userId || resource.data.uid == request.auth.uid);
       
       // ห้ามสร้างหรือลบ (ส่วนของ Admin อนุญาตไปแล้วใน Global Rule)
       allow create, delete: if false;

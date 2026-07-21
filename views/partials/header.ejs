@@ -99,14 +99,21 @@
                     if (user) {
                         try {
                             let role = 'guest';
-                            
-                            if (user.email && user.email.toLowerCase() === 'admin@wangbarbershop.com') {
-                                role = 'manager';
+                            const uid = user.uid;
+
+                            let userDoc = await db.collection('users').doc(uid).get();
+                            let userData = null;
+                            if (userDoc.exists) {
+                                userData = userDoc.data();
                             } else {
-                                const userDoc = await db.collection('users').doc(user.uid).get();
-                                if (userDoc.exists) {
-                                    role = userDoc.data().role;
+                                const uidQuery = await db.collection('users').where('uid', '==', uid).limit(1).get();
+                                if (!uidQuery.empty) {
+                                    userData = uidQuery.docs[0].data();
                                 }
+                            }
+
+                            if (userData && userData.status === 'active') {
+                                role = userData.role;
                             }
 
                             let buttonsHtml = '';

@@ -74,74 +74,100 @@
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังเข้าสู่ระบบ...';
                 submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
 
+                const auth = firebase.auth();
+
                 try {
                     console.log("[1] Firebase Auth Started");
                     // 1. เข้าสู่ระบบด้วย Firebase Auth
-                    const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+                    const userCredential = await auth.signInWithEmailAndPassword(email, password);
                     const user = userCredential.user;
 
                     console.log("[2] Firebase User Loaded");
-                    console.log("Current Email:", user.email);
+                    console.log(auth.currentUser);
 
-                    // [Bypass for Admin]
-                    if (user.email && user.email.toLowerCase() === 'admin@wangbarbershop.com') {
-                        console.log("Is Admin Email");
-                        console.log("Skip Firestore Check");
-                        console.log("Redirect Admin Dashboard");
-                        window.location.href = '/admin';
-                        return;
-                    }
+                    const uid = auth.currentUser.uid;
 
                     console.log("[5] Loading Firestore User");
-                    // 2. เรียกใช้ API ฝั่ง Backend เพื่อตรวจสอบและตั้งค่าสิทธิ์ (ลดปัญหาสิทธิ์ฝั่ง Frontend)
-                    const response = await fetch('/api/verify-role', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ uid: user.uid, email: user.email })
-                    });
-                    
-                    const result = await response.json();
+                    // 2. ดึงข้อมูลเอกสารผู้ใช้งานจาก Firestore ด้วย UID
+                    let userDoc = await db.collection('users').doc(uid).get();
+                    let userData = null;
 
-                    // 3. ตรวจสอบสถานะการตอบกลับ
-                    if (!response.ok || !result.success) {
-                        await firebase.auth().signOut();
-                        console.log("[9] Permission Denied");
-                        alert(result.message || 'เกิดข้อผิดพลาด: ไม่สามารถตรวจสอบสิทธิ์ได้');
+                    if (userDoc.exists) {
+                        userData = userDoc.data();
+                    } else {
+                        console.log("Document not found by ID, searching by uid field...");
+                        const uidQuery = await db.collection('users').where('uid', '==', uid).limit(1).get();
+                        if (!uidQuery.empty) {
+                            userData = uidQuery.docs[0].data();
+                        }
+                    }
+
+                    // STEP 7: Print detailed logs
+                    console.log("Firebase User:", auth.currentUser);
+                    console.log("Firestore User:", userData);
+                    if (userData) {
+                        console.log("Role:", userData.role);
+                        console.log("Status:", userData.status);
+                    } else {
+                        console.log("Role: null");
+                        console.log("Status: null");
+                    }
+                    console.log("UID:", uid);
+
+                    if (!userData) {
+                        console.log("Exact Reason: Document not found");
+                        await auth.signOut();
+                        alert("Document not found");
                         return;
                     }
 
-                    console.log("[6] Firestore User Found");
-                    console.log("[7] User Role:", result.role);
-                    console.log("[8] User Status:", result.status || 'N/A');
+                    if (userData.uid && userData.uid !== uid) {
+                        console.log("Exact Reason: UID mismatch");
+                        await auth.signOut();
+                        alert("UID mismatch");
+                        return;
+                    }
 
-                    // 4. ตรวจสอบ Role เพื่อพิจารณาการ Redirect
-                    if (result.role === 'manager') {
+                    const status = String(userData.status || "").trim().toLowerCase();
+                    const role = String(userData.role || "").trim().toLowerCase();
+
+                    // STEP 6: Check status
+                    if (status !== 'active') {
+                        console.log("Exact Reason: Inactive user");
+                        await auth.signOut();
+                        alert("Inactive user");
+                        return;
+                    }
+
+                    // STEP 5: Verify role
+                    const allowedRoles = ['manager', 'admin', 'barber'];
+                    if (!allowedRoles.includes(role)) {
+                        console.log("Exact Reason: Role invalid");
+                        await auth.signOut();
+                        alert("Role invalid");
+                        return;
+                    }
+
+                    // STEP 8: Repair routing
+                    if (role === 'manager' || role === 'admin') {
                         console.log("[9] Permission Granted");
                         console.log("[10] Redirect Dashboard");
-                        // หากมีสิทธิ์เป็น manager ให้นำทางไปยัง /admin
-                        window.location.href = '/admin';
-                    } else if (result.role === 'barber') {
+                        window.location.href = '/admin/';
+                    } else if (role === 'barber') {
                         console.log("[9] Permission Granted");
                         console.log("[10] Redirect Barber");
-                        // หากมีสิทธิ์เป็นช่างตัดผม ให้นำทางไปยัง /barber
-                        window.location.href = '/barber';
+                        window.location.href = '/barber/';
                     } else {
-                        console.log("[9] Permission Denied");
-                        // หากไม่มีสิทธิ์
-                        await firebase.auth().signOut();
-                        alert('ไม่มีสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแลระบบ');
+                        console.log("Exact Reason: Permission denied");
+                        await auth.signOut();
+                        alert("Permission denied");
                         return;
                     }
 
                 } catch (error) {
                     console.error("Login Error:", error);
-                    console.log("[9] Permission Denied (Error)");
-                    // รหัส Error ของ Firebase สำหรับ Invalid Credential / User Not Found
-                    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-login-credentials') {
-                         alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแลระบบ');
-                    } else {
-                        alert('Login Error: ' + error.message);
-                    }
+                    console.log("Exact Reason: Permission denied");
+                    alert("Permission denied: " + error.message);
                 } finally {
                     // คืนค่าปุ่ม
                     console.log("[11] Loading False");
@@ -151,7 +177,7 @@
                     submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
                 }
             } else if (!firebase || !firebase.auth) {
-                alert("⚠️ ระบบ Firebase Auth ยังไม่พร้อมใช้งาน");
+                alert("Permission denied: Firebase Auth is not ready");
             }
         });
     </script>

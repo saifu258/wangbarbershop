@@ -136,81 +136,95 @@
             firebase.auth().onAuthStateChanged(async (user) => {
                 if (!user) {
                     if (!sessionStorage.getItem('loggingOut')) {
-                        alert("⚠️ กรุณาเข้าสู่ระบบก่อนเข้าใช้งาน");
+                        alert("Permission denied");
                     }
                     sessionStorage.removeItem('loggingOut');
                     window.location.replace('/login');
                 } else {
                     console.log("[2] Firebase User Loaded");
-                    console.log("Current Email:", user.email);
-
-                    // [Bypass for Admin]
-                    if (user.email && user.email.toLowerCase() === 'admin@wangbarbershop.com') {
-                        console.log("Is Admin Email");
-                        console.log("Skip Firestore Check");
-                        
-                        const currentBarberName = 'ผู้ดูแลระบบ';
-                        const selectEl = document.getElementById('currentBarberSelect');
-                        selectEl.innerHTML = `<option value="${currentBarberName}">${currentBarberName}</option>`;
-                        selectEl.value = currentBarberName;
-                        
-                        document.getElementById('authOverlay').classList.add('opacity-0');
-                        setTimeout(() => document.getElementById('authOverlay').classList.add('hidden'), 300);
-                        
-                        console.log("Loading False");
-                        console.log("Redirect Admin Dashboard");
-                        console.log("Authentication Complete");
-                        
-                        initializeQueueListener(currentBarberName, user.uid);
-                        return;
-                    }
+                    const auth = firebase.auth();
+                    const uid = user.uid;
 
                     console.log("[5] Loading Firestore User");
                     try {
-                        const response = await fetch('/api/verify-role', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ uid: user.uid, email: user.email })
-                        });
-                        
-                        const result = await response.json();
-                        
-                        if (!response.ok || !result.success) {
-                            console.log("[9] Permission Denied");
-                            alert("❌ ไม่พบข้อมูลสิทธิ์ผู้ใช้งาน หรือเกิดข้อผิดพลาด");
+                        let userDoc = await db.collection('users').doc(uid).get();
+                        let userData = null;
+                        let exactBarberId = uid;
+
+                        if (userDoc.exists) {
+                            userData = userDoc.data();
+                        } else {
+                            console.log("Document not found by ID, searching by uid field...");
+                            const uidQuery = await db.collection('users').where('uid', '==', uid).limit(1).get();
+                            if (!uidQuery.empty) {
+                                userData = uidQuery.docs[0].data();
+                                exactBarberId = uidQuery.docs[0].id;
+                            }
+                        }
+
+                        // STEP 7: Print detailed logs
+                        console.log("Firebase User:", auth.currentUser);
+                        console.log("Firestore User:", userData);
+                        if (userData) {
+                            console.log("Role:", userData.role);
+                            console.log("Status:", userData.status);
+                        } else {
+                            console.log("Role: null");
+                            console.log("Status: null");
+                        }
+                        console.log("UID:", uid);
+
+                        if (!userData) {
+                            console.log("Exact Reason: Document not found");
+                            await auth.signOut();
+                            alert("Document not found");
                             window.location.href = '/login';
                             return;
                         }
-                        
-                        console.log("[6] Firestore User Found");
-                        console.log("[7] User Role:", result.role);
-                        console.log("[8] User Status:", result.status || 'N/A');
 
-                        const role = result.role;
-                        if (role !== 'barber' && role !== 'manager') {
-                            console.log("[9] Permission Denied: Not Barber or Manager");
-                            alert("❌ คุณไม่มีสิทธิ์เข้าถึงหน้าจัดการคิวช่าง");
+                        if (userData.uid && userData.uid !== uid) {
+                            console.log("Exact Reason: UID mismatch");
+                            await auth.signOut();
+                            alert("UID mismatch");
                             window.location.href = '/login';
-                        } else {
-                            console.log("[9] Permission Granted");
-                            console.log("[10] Redirect Barber");
-                            
-                            // ดึงชื่อช่างจาก API result
-                            const currentBarberName = result.name || 'ช่างไม่มีชื่อ';
-                            
-                            // ล็อค UI Dropdown
-                            const selectEl = document.getElementById('currentBarberSelect');
-                            selectEl.innerHTML = `<option value="${currentBarberName}">${currentBarberName}</option>`;
-                            selectEl.value = currentBarberName;
-
-                            // เริ่มโหลดข้อมูลคิว โดยใช้ docId จาก Firestore (barberId) ถ้ามี เพื่อให้ตรงกับข้อมูลที่จองเข้ามา
-                            const exactBarberId = result.docId || user.uid;
-                            initializeQueueListener(currentBarberName, exactBarberId);
+                            return;
                         }
+
+                        const status = String(userData.status || "").trim().toLowerCase();
+                        const role = String(userData.role || "").trim().toLowerCase();
+
+                        if (status !== 'active') {
+                            console.log("Exact Reason: Inactive user");
+                            await auth.signOut();
+                            alert("Inactive user");
+                            window.location.href = '/login';
+                            return;
+                        }
+
+                        const allowedRoles = ['manager', 'admin', 'barber'];
+                        if (!allowedRoles.includes(role)) {
+                            console.log("Exact Reason: Role invalid");
+                            await auth.signOut();
+                            alert("Role invalid");
+                            window.location.href = '/login';
+                            return;
+                        }
+
+                        console.log("[9] Permission Granted");
+                        
+                        const currentBarberName = userData.name || 'ช่างไม่มีชื่อ';
+                        
+                        // ล็อค UI Dropdown
+                        const selectEl = document.getElementById('currentBarberSelect');
+                        selectEl.innerHTML = `<option value="${currentBarberName}">${currentBarberName}</option>`;
+                        selectEl.value = currentBarberName;
+
+                        initializeQueueListener(currentBarberName, exactBarberId);
+
                     } catch (err) {
                         console.error("Auth check error:", err);
-                        console.log("[9] Permission Denied (Error)");
-                        alert("❌ เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์");
+                        console.log("Exact Reason: Permission denied");
+                        alert("Permission denied: " + err.message);
                         window.location.href = '/login';
                     } finally {
                         document.getElementById('authOverlay').classList.add('opacity-0');
@@ -580,7 +594,7 @@
                         console.warn("Index is missing. Please create a composite index for (barberId, status).");
                         alert("⚠️ จำเป็นต้องสร้าง Database Index สำหรับระบบคิว\nระบบกำลังปรับปรุง Index (ใช้เวลา 1-3 นาที) หากคุณเพิ่งรันคำสั่ง Deploy กรุณารอสักครู่แล้วรีเฟรชหน้าเว็บ");
                     } else if (errMsg.includes('permission')) {
-                        alert("⚠️ ไม่มีสิทธิ์เข้าถึงข้อมูลคิว (Permission Denied)");
+                        alert("Permission denied");
                     } else {
                         renderTable([]); // Fallback เคลียร์ตารางเมื่อเกิด error อื่น
                         renderServingTable([]);
