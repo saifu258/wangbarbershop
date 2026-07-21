@@ -251,18 +251,23 @@ async function autoProvisionDatabase() {
             console.log("✅ 'services' initialized.");
         }
 
-        // ตรวจสอบ users
-        const usersSnap = await db.collection('users').limit(1).get();
-        if (usersSnap.empty) {
-            console.log("⚡ กำลังสร้าง Collection 'users'...");
-            await db.collection('users').doc('init_admin').set({
-                name: 'System Admin',
-                email: 'admin@wangbarbershop.com',
-                role: 'manager',
-                status: 'available',
-                createdAt: FieldValue.serverTimestamp()
+        // ตรวจสอบและสร้างเอกสาร Admin พิเศษตามเงื่อนไข
+        const adminUid = "5b1nfLgfi0hx6HEHyg0w6WssMCx1";
+        const adminDocRef = db.collection('users').doc(adminUid);
+        const adminDoc = await adminDocRef.get();
+        
+        if (!adminDoc.exists) {
+            console.log(`⚡ Creating admin document with UID: ${adminUid}`);
+            await adminDocRef.set({
+                email: "admin@wangbarbershop.com",
+                name: "Admin",
+                role: "manager",
+                status: "active",
+                uid: adminUid,
+                createdAt: FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp()
             });
-            console.log("✅ 'users' initialized.");
+            console.log("✅ Admin document initialized in Firestore.");
         }
 
         console.log("🎯 Database auto-provisioning check completed.");
