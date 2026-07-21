@@ -154,6 +154,9 @@
         <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="bg-gray-800 px-5 py-4 flex justify-between items-center rounded-t-2xl">
                 <h3 class="text-white font-bold"><i class="fa-solid fa-list-check mr-2 text-blue-400"></i> <span id="lblTransactionTitle">รายการที่เสร็จสิ้นวันนี้</span></h3>
+                <button id="clearAllCompletedBtn" onclick="openClearAllModal()" class="bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm border border-red-500 hidden">
+                    <i class="fa-solid fa-trash-can"></i> เคลียร์รายการทั้งหมด
+                </button>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
@@ -555,6 +558,85 @@
     </div>
 </div>
 
+<!-- Delete Booking Modal Overlay -->
+<div id="deleteBookingModalOverlay" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm no-print transition-opacity duration-300">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800"><i class="fa-solid fa-triangle-exclamation text-red-600 mr-2"></i> ยืนยันการลบรายการ</h3>
+            <button onclick="closeDeleteModal()" class="text-gray-400 hover:text-red-500 transition-colors">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 space-y-4">
+            <p class="text-gray-700 font-semibold text-lg text-center">ยืนยันการลบรายการนี้หรือไม่?</p>
+            
+            <div class="bg-red-50 p-4 rounded-xl border border-red-100 space-y-2 text-sm text-gray-700 font-semibold">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">ชื่อลูกค้า:</span>
+                    <span id="deleteCustName" class="text-gray-900">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">บริการ:</span>
+                    <span id="deleteServiceName" class="text-gray-900">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-500">ราคา:</span>
+                    <span id="deleteServicePrice" class="text-gray-900">-</span>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="pt-4 flex gap-3 border-t border-gray-100 mt-6">
+                <button type="button" onclick="closeDeleteModal()" class="flex-1 bg-white hover:bg-gray-100 text-gray-700 font-bold py-2.5 rounded-xl text-sm transition-colors border border-gray-300 text-center">
+                    ยกเลิก
+                </button>
+                <button type="button" id="confirmDeleteBtn" onclick="confirmDeleteBooking()" class="flex-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold py-2.5 rounded-xl text-sm transition-all text-center shadow-sm flex justify-center items-center gap-2">
+                    ยืนยันการลบ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clear All Bookings Modal Overlay -->
+<div id="clearAllBookingsModalOverlay" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm no-print transition-opacity duration-300">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="font-bold text-gray-800"><i class="fa-solid fa-triangle-exclamation text-red-600 mr-2"></i> ยืนยันการเคลียร์รายการทั้งหมด</h3>
+            <button onclick="closeClearAllModal()" class="text-gray-400 hover:text-red-500 transition-colors">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 space-y-4">
+            <p class="text-gray-700 font-semibold text-lg text-center">คุณต้องการลบรายการที่เสร็จสิ้นวันนี้ทั้งหมดหรือไม่?</p>
+            <p class="text-red-600 font-bold text-sm text-center bg-red-50 p-2 rounded border border-red-200">
+                <i class="fa-solid fa-circle-exclamation mr-1"></i> การดำเนินการนี้ไม่สามารถย้อนกลับได้
+            </p>
+            
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 text-sm text-gray-700 font-semibold flex justify-between">
+                <span>จำนวนรายการที่จะลบ:</span>
+                <span id="clearAllRecordCount" class="text-red-600 font-bold">0 รายการ</span>
+            </div>
+            
+            <!-- Actions -->
+            <div class="pt-4 flex gap-3 border-t border-gray-100 mt-6">
+                <button type="button" onclick="closeClearAllModal()" class="flex-1 bg-white hover:bg-gray-100 text-gray-700 font-bold py-2.5 rounded-xl text-sm transition-colors border border-gray-300 text-center">
+                    ยกเลิก
+                </button>
+                <button type="button" id="confirmClearAllBtn" onclick="confirmClearAllBookings()" class="flex-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold py-2.5 rounded-xl text-sm transition-all text-center shadow-sm flex justify-center items-center gap-2">
+                    ยืนยันเคลียร์ทั้งหมด
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     let allCompletedBookings = [];
     let filteredBookings = [];
@@ -828,6 +910,16 @@
         const tbody = document.getElementById('transactionBody');
         document.getElementById('totalHeads').innerHTML = `${filteredBookings.length} <span class="text-lg font-medium text-gray-400">คน</span>`;
         
+        // Toggle เคลียร์รายการทั้งหมด button visibility
+        const clearBtn = document.getElementById('clearAllCompletedBtn');
+        if (clearBtn) {
+            if (filteredBookings.length === 0) {
+                clearBtn.classList.add('hidden');
+            } else {
+                clearBtn.classList.remove('hidden');
+            }
+        }
+        
         grossRevenue = 0;
         let html = '';
 
@@ -859,6 +951,9 @@
                                 </button>
                                 <button onclick="openReceipt('${b.id}')" class="bg-white hover:bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-blue-200 shadow-sm hover:shadow transition-all flex items-center gap-1.5">
                                     <i class="fa-solid fa-receipt"></i> <span class="hidden sm:inline">ใบเสร็จ</span>
+                                </button>
+                                <button onclick="openDeleteModal('${b.id}')" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-sm font-bold border border-red-200 shadow-sm hover:shadow transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-trash-can"></i> <span class="hidden sm:inline">ลบ</span>
                                 </button>
                             </div>
                         </td>
@@ -1007,6 +1102,134 @@
         } finally {
             saveBtn.disabled = false;
             saveBtn.innerHTML = originalBtnHtml;
+        }
+    }
+
+    // 3.6 ระบบลบข้อมูล (Delete & Clear All Bookings)
+    let currentDeleteId = null;
+
+    function openDeleteModal(id) {
+        const b = filteredBookings.find(x => x.id === id);
+        if (!b) return;
+        
+        currentDeleteId = id;
+        const customerName = b.customerName || b.customer || b.name || b.clientName || b.bookingName || (b.firstName ? (`${b.firstName} ${b.lastName || ''}`).trim() : null) || '-';
+        
+        document.getElementById('deleteCustName').innerText = customerName;
+        document.getElementById('deleteServiceName').innerText = b.serviceName || '-';
+        document.getElementById('deleteServicePrice').innerText = `${Number(b.servicePrice || 0).toLocaleString()} ฿`;
+        
+        document.getElementById('deleteBookingModalOverlay').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteBookingModalOverlay').classList.add('hidden');
+        currentDeleteId = null;
+    }
+
+    async function confirmDeleteBooking() {
+        if (!currentDeleteId) return;
+        
+        const deleteBtn = document.getElementById('confirmDeleteBtn');
+        const originalBtnHtml = deleteBtn.innerHTML;
+        
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังลบ...';
+        
+        try {
+            const id = currentDeleteId;
+            if (typeof db !== 'undefined' && db && id !== 'm1' && id !== 'm2' && id !== 'm3' && id !== 'm4') {
+                // Real Firestore delete
+                await db.collection("bookings").doc(id).delete();
+                
+                // Update local array
+                allCompletedBookings = allCompletedBookings.filter(b => b.id !== id);
+            } else {
+                // Mock Mode delete
+                allCompletedBookings = allCompletedBookings.filter(b => b.id !== id);
+                console.log("Mock Mode: Deleted successfully", id);
+            }
+            
+            alert("ลบรายการเรียบร้อยแล้ว");
+            closeDeleteModal();
+            
+            // Refresh table
+            applyFilters();
+            
+        } catch (error) {
+            console.error("Delete Error:", error);
+            alert("ไม่สามารถลบรายการได้ กรุณาลองใหม่อีกครั้ง");
+        } finally {
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = originalBtnHtml;
+        }
+    }
+
+    function openClearAllModal() {
+        const recordCount = filteredBookings.length;
+        if (recordCount === 0) {
+            alert("ไม่พบรายการที่ต้องการลบ");
+            return;
+        }
+        
+        document.getElementById('clearAllRecordCount').innerText = `${recordCount} รายการ`;
+        document.getElementById('clearAllBookingsModalOverlay').classList.remove('hidden');
+    }
+
+    function closeClearAllModal() {
+        document.getElementById('clearAllBookingsModalOverlay').classList.add('hidden');
+    }
+
+    async function confirmClearAllBookings() {
+        const recordCount = filteredBookings.length;
+        if (recordCount === 0) {
+            alert("ไม่พบรายการที่ต้องการลบ");
+            closeClearAllModal();
+            return;
+        }
+        
+        const clearBtn = document.getElementById('confirmClearAllBtn');
+        const originalBtnHtml = clearBtn.innerHTML;
+        
+        clearBtn.disabled = true;
+        clearBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังเคลียร์รายการ...';
+        
+        try {
+            const idsToDelete = filteredBookings.map(b => b.id);
+            
+            if (typeof db !== 'undefined' && db) {
+                // Real Firestore batch delete
+                const batch = db.batch();
+                let realDeletesCount = 0;
+                
+                idsToDelete.forEach(id => {
+                    if (id !== 'm1' && id !== 'm2' && id !== 'm3' && id !== 'm4') {
+                        const docRef = db.collection("bookings").doc(id);
+                        batch.delete(docRef);
+                        realDeletesCount++;
+                    }
+                });
+                
+                if (realDeletesCount > 0) {
+                    await batch.commit();
+                }
+            }
+            
+            // Update local array
+            allCompletedBookings = allCompletedBookings.filter(b => !idsToDelete.includes(b.id));
+            
+            alert("เคลียร์รายการที่เสร็จสิ้นเรียบร้อยแล้ว");
+            closeClearAllModal();
+            
+            // Refresh table
+            applyFilters();
+            
+        } catch (error) {
+            console.error("Clear All Error:", error);
+            alert("ไม่สามารถเคลียร์รายการได้ กรุณาลองใหม่อีกครั้ง");
+        } finally {
+            clearBtn.disabled = false;
+            clearBtn.innerHTML = originalBtnHtml;
         }
     }
 
